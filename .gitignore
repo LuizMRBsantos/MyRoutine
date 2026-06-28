@@ -1,0 +1,50 @@
+# ========================
+# Secrets & Environment
+# ========================
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+secrets/
+
+# ========================
+# Go
+# ========================
+backend/bin/
+backend/*.exe
+backend/*.test
+backend/vendor/
+backend/coverage.out
+backend/coverage.html
+
+# ========================
+# Node / Frontend
+# ========================
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/coverage/
+
+# ========================
+# Docker
+# ========================
+*.log
+docker-compose.override.yml
+
+# ========================
+# IDEs
+# ========================
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# ========================
+# Security scan outputs
+# ========================
+trivy-results.json
+semgrep-results.json
+zap-results.json

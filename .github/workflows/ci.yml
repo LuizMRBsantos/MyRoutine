@@ -1,0 +1,183 @@
+name: CI — Build, Test & Security
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  GO_VERSION: "1.26"
+  NODE_VERSION: "20"
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # 1. SECRET SCANNING — Detecta secrets vazados em commits
+  # ─────────────────────────────────────────────────────────────
+  secret-scan:
+    name: 🔑 Secret Scanning (GitLeaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for scanning
+
+      - name: Run GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─────────────────────────────────────────────────────────────
+  # 2. BACKEND — Go build, test, SAST
+  # ─────────────────────────────────────────────────────────────
+  backend:
+    name: 🦫 Backend (Go)
+    runs-on: ubuntu-latest
+    needs: secret-scan
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Download dependencies
+        run: go mod download
+        working-directory: backend
+
+      - name: Verify dependencies (no tampering)
+        run: go mod verify
+        working-directory: backend
+
+      - name: Build
+        run: go build ./...
+        working-directory: backend
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+        working-directory: backend
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: backend/coverage.out
+
+      # SAST — Static Application Security Testing
+      - name: Run Semgrep (SAST)
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: >-
+            p/golang
+            p/owasp-top-ten
+            p/secrets
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+
+      # Dependency vulnerability scan
+      - name: Run govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
+        working-directory: backend
+
+      # Static analysis
+      - name: Run staticcheck
+        uses: dominikh/staticcheck-action@v1
+        with:
+          working-directory: backend
+
+  # ─────────────────────────────────────────────────────────────
+  # 3. FRONTEND — Node build, test, audit
+  # ─────────────────────────────────────────────────────────────
+  frontend:
+    name: ⚛️  Frontend (React + Vite)
+    runs-on: ubuntu-latest
+    needs: secret-scan
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Type check
+        run: npm run type-check
+        working-directory: frontend
+
+      - name: Lint
+        run: npm run lint
+        working-directory: frontend
+
+      - name: Run tests
+        run: npm run test:ci
+        working-directory: frontend
+
+      - name: Build
+        run: npm run build
+        working-directory: frontend
+
+      # Dependency audit
+      - name: npm audit
+        run: npm audit --audit-level=high
+        working-directory: frontend
+
+  # ─────────────────────────────────────────────────────────────
+  # 4. CONTAINER SECURITY — Trivy scan na imagem Docker
+  # ─────────────────────────────────────────────────────────────
+  container-scan:
+    name: 🐳 Container Security (Trivy)
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t myroutine-backend:${{ github.sha }} .
+        working-directory: backend
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: "myroutine-backend:${{ github.sha }}"
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
+          exit-code: "1"  # Falha o CI se encontrar CRITICAL ou HIGH
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-results.sarif"
+
+  # ─────────────────────────────────────────────────────────────
+  # 5. SUMMARY — Badge de segurança
+  # ─────────────────────────────────────────────────────────────
+  security-summary:
+    name: 📊 Security Summary
+    runs-on: ubuntu-latest
+    needs: [secret-scan, backend, frontend, container-scan]
+    if: always()
+
+    steps:
+      - name: Security Gate
+        run: |
+          echo "## Security Gate Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Secret Scanning | ${{ needs.secret-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend SAST | ${{ needs.backend.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend Audit | ${{ needs.frontend.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Container Scan | ${{ needs.container-scan.result }} |" >> $GITHUB_STEP_SUMMARY

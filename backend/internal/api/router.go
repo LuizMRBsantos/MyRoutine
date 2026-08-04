@@ -48,6 +48,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 	habitHandler := handlers.NewHabitHandler(cfg, db, logger)
 	reviewHandler := handlers.NewReviewHandler(cfg, db, logger)
 	taskHandler := handlers.NewTaskHandler(cfg, db, logger)
+	userHandler := handlers.NewUserHandler(cfg, db, logger)
 
 	// ─── Routes ─────────────────────────────────────────────────
 
@@ -71,6 +72,13 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 		// Protected routes — requer JWT válido
 		r.Group(func(r chi.Router) {
 			r.Use(custommiddleware.JWTAuth(cfg))
+
+			// Current user profile
+			r.Route("/me", func(r chi.Router) {
+				r.Get("/", userHandler.Me)
+				r.Patch("/", userHandler.UpdateMe)
+				r.Put("/password", userHandler.ChangePassword)
+			})
 
 			// Habits
 			r.Route("/habits", func(r chi.Router) {

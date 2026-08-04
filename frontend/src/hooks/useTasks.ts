@@ -17,12 +17,12 @@ export const taskKeys = {
 const tasksApi = {
   listByDate: async (date: string): Promise<Task[]> => {
     const { data } = await api.get('/tasks', { params: { date } })
-    return data
+    return data.tasks
   },
 
   listByWeek: async (start: string, end: string): Promise<Task[]> => {
     const { data } = await api.get('/tasks/week', { params: { start, end } })
-    return data
+    return data.tasks
   },
 
   create: async (input: CreateTaskInput): Promise<Task> => {
@@ -48,7 +48,7 @@ const tasksApi = {
 const goalsApi = {
   listByMonth: async (month: string): Promise<MonthlyGoal[]> => {
     const { data } = await api.get('/goals', { params: { month } })
-    return data
+    return data.goals
   },
 
   create: async (input: CreateGoalInput): Promise<MonthlyGoal> => {

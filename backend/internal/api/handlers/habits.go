@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
@@ -32,21 +31,6 @@ func NewHabitHandler(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) *
 }
 
 // ─── DTOs ─────────────────────────────────────────────────────────────────────
-
-type createHabitRequest struct {
-	Name         string                `json:"name"`
-	Description  string                `json:"description"`
-	Icon         string                `json:"icon"`
-	Color        string                `json:"color"`
-	Frequency    string                `json:"frequency"`
-	TargetDays   []int32               `json:"target_days"`
-	TimeOfDay    string                `json:"time_of_day"`
-	// Advanced check type fields
-	CheckType    string                `json:"check_type"`
-	TimerMinutes *int                  `json:"timer_minutes,omitempty"`
-	DeadlineTime *string               `json:"deadline_time,omitempty"`
-	MetricConfig []service.MetricField `json:"metric_config,omitempty"`
-}
 
 type checkInRequest struct {
 	Date         string                 `json:"date"`
@@ -78,7 +62,7 @@ func (h *HabitHandler) List(w http.ResponseWriter, r *http.Request) {
 func (h *HabitHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 
-	var req createHabitRequest
+	var req service.CreateHabitInput
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
 		return
@@ -115,9 +99,7 @@ func (h *HabitHandler) Create(w http.ResponseWriter, r *http.Request) {
 		req.MetricConfig = nil
 	}
 
-	habit, err := h.habitSvc.Create(r.Context(), userID, req.Name, req.Description, req.Icon, req.Color,
-		req.Frequency, req.TimeOfDay, req.CheckType, req.TargetDays,
-		req.TimerMinutes, req.DeadlineTime, req.MetricConfig)
+	habit, err := h.habitSvc.Create(r.Context(), userID, req)
 	if err != nil {
 		h.logger.Error("create habit failed", zap.Error(err))
 		respondError(w, http.StatusInternalServerError, "failed to create habit")
@@ -150,13 +132,13 @@ func (h *HabitHandler) Update(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	habitID := chi.URLParam(r, "habitID")
 
-	var req createHabitRequest
+	var req service.UpdateHabitInput
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		respondError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	habit, err := h.habitSvc.Update(r.Context(), habitID, userID, req.Name, req.Description, req.Icon, req.Color, req.Frequency, req.TargetDays)
+	habit, err := h.habitSvc.Update(r.Context(), habitID, userID, req)
 	if err != nil {
 		if err == service.ErrNotFound {
 			respondError(w, http.StatusNotFound, "habit not found")
@@ -175,6 +157,10 @@ func (h *HabitHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	habitID := chi.URLParam(r, "habitID")
 
 	if err := h.habitSvc.Delete(r.Context(), habitID, userID); err != nil {
+		if err == service.ErrNotFound {
+			respondError(w, http.StatusNotFound, "habit not found")
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "failed to delete habit")
 		return
 	}
@@ -229,6 +215,10 @@ func (h *HabitHandler) UndoCheckIn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.habitSvc.UndoCheckIn(r.Context(), habitID, userID, date); err != nil {
+		if err == service.ErrNotFound {
+			respondError(w, http.StatusNotFound, "check-in not found")
+			return
+		}
 		respondError(w, http.StatusInternalServerError, "failed to undo check-in")
 		return
 	}
@@ -286,6 +276,3 @@ func (h *HabitHandler) Heatmap(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusOK, map[string]any{"heatmap": data})
 }
-
-// Ensure uuid is used somewhere (suppress import error before sqlc gen)
-var _ = uuid.New

@@ -5,6 +5,8 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { HabitsPage } from '@/pages/HabitsPage'
 import { PlannerPage } from '@/pages/PlannerPage'
 import { FinancePage } from '@/pages/FinancePage'
+import { HealthPage } from '@/pages/HealthPage'
+import { StudyPage } from '@/pages/StudyPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -59,6 +61,14 @@ const router = createBrowserRouter([
       {
         path: '/finance',
         element: <FinancePage />,
+      },
+      {
+        path: '/health',
+        element: <HealthPage />,
+      },
+      {
+        path: '/studies',
+        element: <StudyPage />,
       },
       {
         path: '*',

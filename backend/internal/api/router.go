@@ -50,6 +50,8 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 	taskHandler := handlers.NewTaskHandler(cfg, db, logger)
 	userHandler := handlers.NewUserHandler(cfg, db, logger)
 	financeHandler := handlers.NewFinanceHandler(cfg, db, logger)
+	healthModuleHandler := handlers.NewHealthModuleHandler(cfg, db, logger)
+	studyHandler := handlers.NewStudyHandler(cfg, db, logger)
 
 	// ─── Routes ─────────────────────────────────────────────────
 
@@ -128,6 +130,22 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 					r.Put("/", financeHandler.UpsertBudget)
 					r.Delete("/{id}", financeHandler.DeleteBudget)
 				})
+			})
+
+			// Health module (consome habit_logs de hábitos category='health')
+			r.Route("/health-module", func(r chi.Router) {
+				r.Get("/activities", healthModuleHandler.ListActivities) // ?from&to
+				r.Get("/summary", healthModuleHandler.Summary)           // ?weeks=4
+				r.Get("/body-metrics", healthModuleHandler.ListBodyMetrics)
+				r.Post("/body-metrics", healthModuleHandler.UpsertBodyMetric)
+			})
+
+			// Study sessions
+			r.Route("/study", func(r chi.Router) {
+				r.Get("/sessions", studyHandler.ListSessions)   // ?from&to&subject
+				r.Post("/sessions", studyHandler.CreateSession)
+				r.Delete("/sessions/{id}", studyHandler.DeleteSession)
+				r.Get("/summary", studyHandler.Summary)
 			})
 
 			// Monthly Goals

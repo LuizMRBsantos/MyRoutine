@@ -7,10 +7,10 @@ import { HabitHeatmap } from '@/components/habits/HabitHeatmap'
 import { DashboardCalendarWidget } from '@/components/dashboard/DashboardCalendarWidget'
 import styles from './DashboardPage.module.css'
 
-const FUTURE_MODULES = [
-  { icon: '◈', label: 'Finanças', desc: 'Controle seus gastos', color: '#34C759', soon: true },
-  { icon: '◉', label: 'Saúde', desc: 'Treinos e métricas', color: '#FF9F0A', soon: true },
-  { icon: '◆', label: 'Estudos', desc: 'Aprendizado ativo', color: '#AF52DE', soon: true },
+const MODULES = [
+  { icon: '◈', label: 'Finanças', desc: 'Controle seus gastos', color: '#34C759', to: '/finance' },
+  { icon: '◉', label: 'Saúde', desc: 'Treinos e métricas', color: '#FF9F0A', to: '/health' },
+  { icon: '◆', label: 'Estudos', desc: 'Aprendizado ativo', color: '#AF52DE', to: '/studies' },
 ]
 
 export function DashboardPage() {
@@ -89,12 +89,14 @@ export function DashboardPage() {
           <TodayHabits habits={habits} isLoading={isLoading} />
         </motion.div>
 
-        {/* ─── Future Modules ──────────────────────────── */}
+        {/* ─── Modules ──────────────────────────── */}
         <div className={styles.modulesGrid}>
-          {FUTURE_MODULES.map((mod, i) => (
+          {MODULES.map((mod, i) => (
             <motion.div
               key={mod.label}
               className={`glass-card ${styles.moduleCard}`}
+              style={{ cursor: 'pointer' }}
+              onClick={() => navigate(mod.to)}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 + i * 0.06, duration: 0.4 }}
@@ -109,7 +111,6 @@ export function DashboardPage() {
                 <h3 className={styles.moduleLabel}>{mod.label}</h3>
                 <p className={styles.moduleDesc}>{mod.desc}</p>
               </div>
-              {mod.soon && <span className={styles.soonBadge}>Em breve</span>}
             </motion.div>
           ))}
         </div>

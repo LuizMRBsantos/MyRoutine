@@ -9,8 +9,8 @@ const navItems = [
   { to: '/habits', icon: '✦', label: 'Hábitos' },
   { to: '/planner', icon: '📅', label: 'Planner' },
   { to: '/finance', icon: '◈', label: 'Finanças' },
-  { to: '/health', icon: '◉', label: 'Saúde', soon: true },
-  { to: '/studies', icon: '◆', label: 'Estudos', soon: true },
+  { to: '/health', icon: '◉', label: 'Saúde' },
+  { to: '/studies', icon: '◆', label: 'Estudos' },
 ]
 
 export function AppLayout() {
@@ -46,13 +46,11 @@ export function AppLayout() {
               to={item.to}
               end={item.to === '/'}
               className={({ isActive }) =>
-                `${styles.navItem} ${isActive ? styles.navItemActive : ''} ${item.soon ? styles.navItemSoon : ''}`
+                `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
               }
-              onClick={item.soon ? (e) => e.preventDefault() : undefined}
             >
               <span className={styles.navIcon}>{item.icon}</span>
               <span className={styles.navLabel}>{item.label}</span>
-              {item.soon && <span className={styles.soonBadge}>Em breve</span>}
             </NavLink>
           ))}
         </nav>

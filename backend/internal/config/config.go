@@ -46,7 +46,7 @@ func Load() (*Config, error) {
 	// Load .env in non-production environments
 	if os.Getenv("APP_ENV") != "production" {
 		// Ignore error — .env is optional in CI/CD
-		_ = godotenv.Load("../../.env")
+		_ = godotenv.Load("../.env")
 	}
 
 	cfg := &Config{

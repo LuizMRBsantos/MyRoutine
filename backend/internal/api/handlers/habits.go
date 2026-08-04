@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -33,17 +34,28 @@ func NewHabitHandler(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) *
 // ─── DTOs ─────────────────────────────────────────────────────────────────────
 
 type createHabitRequest struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Icon        string   `json:"icon"`
-	Color       string   `json:"color"`
-	Frequency   string   `json:"frequency"`
-	TargetDays  []int32  `json:"target_days"`
+	Name         string                `json:"name"`
+	Description  string                `json:"description"`
+	Icon         string                `json:"icon"`
+	Color        string                `json:"color"`
+	Frequency    string                `json:"frequency"`
+	TargetDays   []int32               `json:"target_days"`
+	TimeOfDay    string                `json:"time_of_day"`
+	// Advanced check type fields
+	CheckType    string                `json:"check_type"`
+	TimerMinutes *int                  `json:"timer_minutes,omitempty"`
+	DeadlineTime *string               `json:"deadline_time,omitempty"`
+	MetricConfig []service.MetricField `json:"metric_config,omitempty"`
 }
 
 type checkInRequest struct {
-	Date  string `json:"date"`  // "YYYY-MM-DD"
-	Notes string `json:"notes"`
+	Date         string                 `json:"date"`
+	Notes        string                 `json:"notes"`
+	TimerSeconds *int                   `json:"timer_seconds,omitempty"`
+	StartedAt    *time.Time             `json:"started_at,omitempty"`
+	CompletedAt  *time.Time             `json:"completed_at,omitempty"`
+	Metrics      map[string]interface{} `json:"metrics,omitempty"`
+	IsManual     bool                   `json:"is_manual"`
 }
 
 // ─── Handlers ─────────────────────────────────────────────────────────────────
@@ -88,8 +100,24 @@ func (h *HabitHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if len(req.TargetDays) == 0 {
 		req.TargetDays = []int32{1, 2, 3, 4, 5, 6, 7}
 	}
+	if req.CheckType == "" {
+		req.CheckType = "simple"
+	}
 
-	habit, err := h.habitSvc.Create(r.Context(), userID, req.Name, req.Description, req.Icon, req.Color, req.Frequency, req.TargetDays)
+	// Sanitize check_type dependent fields to avoid SQL syntax errors on empty strings
+	if req.CheckType != "timed" || (req.TimerMinutes != nil && *req.TimerMinutes <= 0) {
+		req.TimerMinutes = nil
+	}
+	if req.CheckType != "deadline" || (req.DeadlineTime != nil && strings.TrimSpace(*req.DeadlineTime) == "") {
+		req.DeadlineTime = nil
+	}
+	if req.CheckType != "metric" {
+		req.MetricConfig = nil
+	}
+
+	habit, err := h.habitSvc.Create(r.Context(), userID, req.Name, req.Description, req.Icon, req.Color,
+		req.Frequency, req.TimeOfDay, req.CheckType, req.TargetDays,
+		req.TimerMinutes, req.DeadlineTime, req.MetricConfig)
 	if err != nil {
 		h.logger.Error("create habit failed", zap.Error(err))
 		respondError(w, http.StatusInternalServerError, "failed to create habit")
@@ -154,7 +182,7 @@ func (h *HabitHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// CheckIn marks a habit as done for a given date.
+// CheckIn marks a habit as done for a given date with type-specific validation.
 func (h *HabitHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 	habitID := chi.URLParam(r, "habitID")
@@ -165,20 +193,25 @@ func (h *HabitHandler) CheckIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Default to today if no date provided
-	date := req.Date
-	if date == "" {
-		date = time.Now().Format("2006-01-02")
+	input := service.CheckInInput{
+		Date:         req.Date,
+		Notes:        req.Notes,
+		TimerSeconds: req.TimerSeconds,
+		StartedAt:    req.StartedAt,
+		CompletedAt:  req.CompletedAt,
+		Metrics:      req.Metrics,
+		IsManual:     req.IsManual,
 	}
 
-	log, err := h.habitSvc.CheckIn(r.Context(), habitID, userID, date, req.Notes)
+	log, err := h.habitSvc.CheckIn(r.Context(), habitID, userID, input)
 	if err != nil {
 		if err == service.ErrNotFound {
 			respondError(w, http.StatusNotFound, "habit not found")
 			return
 		}
-		h.logger.Error("check-in failed", zap.Error(err))
-		respondError(w, http.StatusInternalServerError, "check-in failed")
+		// Validation errors (deadline passed, timer too short, etc.)
+		h.logger.Warn("check-in validation failed", zap.Error(err))
+		respondError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 

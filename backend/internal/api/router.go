@@ -46,6 +46,8 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 	healthHandler := handlers.NewHealthHandler(db)
 	authHandler := handlers.NewAuthHandler(cfg, db, logger)
 	habitHandler := handlers.NewHabitHandler(cfg, db, logger)
+	reviewHandler := handlers.NewReviewHandler(cfg, db, logger)
+	taskHandler := handlers.NewTaskHandler(cfg, db, logger)
 
 	// ─── Routes ─────────────────────────────────────────────────
 
@@ -84,6 +86,32 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 					r.Post("/checkin", habitHandler.CheckIn)
 					r.Delete("/checkin", habitHandler.UndoCheckIn)
 					r.Get("/logs", habitHandler.Logs)
+					r.Post("/review", reviewHandler.ReviewDay)
+				})
+			})
+
+			// Reviews — missed days summary
+			r.Get("/reviews/missed", reviewHandler.GetMissedDays)
+
+			// Tasks (planejamento diário/semanal)
+			r.Route("/tasks", func(r chi.Router) {
+				r.Get("/", taskHandler.ListByDate)        // ?date=YYYY-MM-DD
+				r.Post("/", taskHandler.Create)
+				r.Get("/week", taskHandler.ListByWeek)    // ?start=...&end=...
+				r.Route("/{id}", func(r chi.Router) {
+					r.Patch("/", taskHandler.Update)
+					r.Delete("/", taskHandler.Delete)
+					r.Post("/advance", taskHandler.AdvanceStatus)
+				})
+			})
+
+			// Monthly Goals
+			r.Route("/goals", func(r chi.Router) {
+				r.Get("/", taskHandler.ListGoals)          // ?month=YYYY-MM-DD
+				r.Post("/", taskHandler.CreateGoal)
+				r.Route("/{id}", func(r chi.Router) {
+					r.Patch("/status", taskHandler.UpdateGoalStatus)
+					r.Delete("/", taskHandler.DeleteGoal)
 				})
 			})
 		})

@@ -89,10 +89,25 @@ export function useCreateHabit() {
       queryClient.invalidateQueries({ queryKey: habitKeys.list() })
       queryClient.invalidateQueries({ queryKey: habitKeys.stats() })
     },
-    onError: (error: any) => {
-      console.error('Create habit error:', error)
-      alert('Erro ao criar hábito: ' + (error.response?.data?.error || error.message))
-    }
+  })
+}
+
+export function useUpdateHabit() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: Partial<CreateHabitInput> }) =>
+      habitsApi.update(id, input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.all })
+    },
+  })
+}
+
+export function useHabitLogs(id: string | undefined, from?: string, to?: string) {
+  return useQuery({
+    queryKey: [...habitKeys.logs(id ?? ''), from, to],
+    queryFn: () => habitsApi.getLogs(id!, from, to),
+    enabled: !!id,
   })
 }
 

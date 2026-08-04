@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuthStore } from '@/store/authStore'
+import api from '@/services/api'
 import styles from './AppLayout.module.css'
 
 const navItems = [
@@ -13,7 +14,19 @@ const navItems = [
 ]
 
 export function AppLayout() {
-  const { user, logout } = useAuthStore()
+  const { user, refreshToken, logout } = useAuthStore()
+
+  const handleLogout = async () => {
+    // Revoga o refresh token no servidor antes de limpar o estado local.
+    try {
+      if (refreshToken) {
+        await api.post('/auth/logout', { refresh_token: refreshToken })
+      }
+    } catch {
+      // Logout local acontece de qualquer forma
+    }
+    logout()
+  }
 
   return (
     <div className={styles.layout}>
@@ -55,7 +68,7 @@ export function AppLayout() {
               <span className={styles.userEmail}>{user?.email}</span>
             </div>
           </div>
-          <button className={styles.logoutBtn} onClick={logout} title="Sair">
+          <button className={styles.logoutBtn} onClick={handleLogout} title="Sair">
             ⎋
           </button>
         </div>

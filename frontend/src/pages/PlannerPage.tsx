@@ -7,6 +7,8 @@ import {
 import { AddTaskModal } from '@/components/planner/AddTaskModal'
 import { TaskBlock } from '@/components/planner/TaskBlock'
 import { MonthCalendarView } from '@/components/planner/MonthCalendarView'
+import { MonthlyGoalsPanel } from '@/components/planner/MonthlyGoalsPanel'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import type { Task } from '@/types/task'
 import { CATEGORY_META } from '@/types/task'
 import styles from './PlannerPage.module.css'
@@ -41,6 +43,7 @@ export function PlannerPage() {
   const [viewDate, setViewDate] = useState(new Date())
   const [showAdd, setShowAdd] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [deletingTask, setDeletingTask] = useState<Task | null>(null)
 
   const today = new Date()
   const dateStr = toDateStr(viewDate)
@@ -146,7 +149,7 @@ export function PlannerPage() {
                       task={task}
                       onAdvance={() => advanceTask.mutate(task.id)}
                       onEdit={() => setEditingTask(task)}
-                      onDelete={() => deleteTask.mutate(task.id)}
+                      onDelete={() => setDeletingTask(task)}
                       isPending={advanceTask.isPending || deleteTask.isPending}
                     />
                   ))}
@@ -218,6 +221,9 @@ export function PlannerPage() {
           <motion.div key="month" className={styles.content}
             initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
           >
+            {/* Metas do mês */}
+            <MonthlyGoalsPanel viewDate={viewDate} />
+
             {/* Calendário Macro do Mês */}
             <MonthCalendarView
               viewDate={viewDate}
@@ -234,6 +240,19 @@ export function PlannerPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── Delete confirmation ── */}
+      <ConfirmDialog
+        open={!!deletingTask}
+        title="Excluir tarefa?"
+        message={`"${deletingTask?.title}" será removida do planejamento.`}
+        confirmLabel="Excluir"
+        onConfirm={() => {
+          if (deletingTask) deleteTask.mutate(deletingTask.id)
+          setDeletingTask(null)
+        }}
+        onCancel={() => setDeletingTask(null)}
+      />
 
       {/* ── Add / Edit Task Modal ── */}
       {(showAdd || editingTask) && (

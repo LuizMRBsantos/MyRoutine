@@ -13,6 +13,8 @@ export interface MetricField {
 }
 
 // ─── Habit ────────────────────────────────────────────────
+export type HabitCategory = 'general' | 'health' | 'study'
+
 export interface Habit {
   id: string
   name: string
@@ -22,6 +24,7 @@ export interface Habit {
   frequency: 'daily' | 'weekly' | 'custom'
   target_days: number[]
   time_of_day: 'morning' | 'afternoon' | 'evening' | 'anytime'
+  category: HabitCategory
   is_active: boolean
   created_at: string
   current_streak: number
@@ -46,12 +49,22 @@ export interface HabitLog {
   completed_at?: string
   metrics?: Record<string, number>
   is_manual: boolean
+  source_type: 'manual' | 'task' | 'track_day' | 'study_session' | 'import'
 }
 
 // ─── Heatmap & Stats ──────────────────────────────────────
 export interface HeatmapEntry {
   date: string
   habits_completed: number
+}
+
+export interface HabitStat {
+  habit_id: string
+  habit_name: string
+  icon: string
+  color: string
+  current_streak: number
+  completion_rate: number
 }
 
 export interface HabitStats {
@@ -61,6 +74,7 @@ export interface HabitStats {
   best_streak: number
   current_streak: number
   completion_rate_7d: number
+  habit_stats: HabitStat[]
 }
 
 // ─── Create Input ─────────────────────────────────────────
@@ -72,6 +86,7 @@ export interface CreateHabitInput {
   frequency: string
   target_days: number[]
   time_of_day: 'morning' | 'afternoon' | 'evening' | 'anytime'
+  category?: HabitCategory
   // Advanced check type fields
   check_type?: HabitCheckType
   timer_minutes?: number

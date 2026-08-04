@@ -1,0 +1,56 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.addRow {
+  display: grid;
+  grid-template-columns: 1fr 110px auto;
+  gap: var(--space-2);
+}
+
+.amount {
+  text-align: right;
+}
+
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.itemLabel {
+  flex: 1;
+  color: var(--color-text-secondary);
+}
+
+.itemValue {
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.removeBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: var(--font-size-md);
+  padding: 0 var(--space-1);
+  transition: color var(--transition-fast);
+}
+
+.removeBtn:hover {
+  color: var(--color-text-primary);
+}

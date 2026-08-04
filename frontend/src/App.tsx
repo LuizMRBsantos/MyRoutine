@@ -4,6 +4,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { HabitsPage } from '@/pages/HabitsPage'
 import { PlannerPage } from '@/pages/PlannerPage'
+import { FinancePage } from '@/pages/FinancePage'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -54,6 +55,10 @@ const router = createBrowserRouter([
       {
         path: '/planner',
         element: <PlannerPage />,
+      },
+      {
+        path: '/finance',
+        element: <FinancePage />,
       },
       {
         path: '*',

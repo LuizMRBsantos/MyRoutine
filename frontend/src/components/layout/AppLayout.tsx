@@ -8,7 +8,7 @@ const navItems = [
   { to: '/', icon: '⊞', label: 'Dashboard' },
   { to: '/habits', icon: '✦', label: 'Hábitos' },
   { to: '/planner', icon: '📅', label: 'Planner' },
-  { to: '/finance', icon: '◈', label: 'Finanças', soon: true },
+  { to: '/finance', icon: '◈', label: 'Finanças' },
   { to: '/health', icon: '◉', label: 'Saúde', soon: true },
   { to: '/studies', icon: '◆', label: 'Estudos', soon: true },
 ]

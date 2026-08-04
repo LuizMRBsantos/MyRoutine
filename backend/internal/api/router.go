@@ -49,6 +49,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 	reviewHandler := handlers.NewReviewHandler(cfg, db, logger)
 	taskHandler := handlers.NewTaskHandler(cfg, db, logger)
 	userHandler := handlers.NewUserHandler(cfg, db, logger)
+	financeHandler := handlers.NewFinanceHandler(cfg, db, logger)
 
 	// ─── Routes ─────────────────────────────────────────────────
 
@@ -110,6 +111,22 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 					r.Patch("/", taskHandler.Update)
 					r.Delete("/", taskHandler.Delete)
 					r.Post("/advance", taskHandler.AdvanceStatus)
+				})
+			})
+
+			// Finance (transações e orçamentos mensais)
+			r.Route("/finance", func(r chi.Router) {
+				r.Route("/transactions", func(r chi.Router) {
+					r.Get("/", financeHandler.ListTransactions)   // ?from&to&category
+					r.Post("/", financeHandler.CreateTransaction)
+					r.Patch("/{id}", financeHandler.UpdateTransaction)
+					r.Delete("/{id}", financeHandler.DeleteTransaction)
+				})
+				r.Get("/summary", financeHandler.Summary)          // ?month=YYYY-MM-DD
+				r.Route("/budgets", func(r chi.Router) {
+					r.Get("/", financeHandler.ListBudgets)         // ?month=YYYY-MM-DD
+					r.Put("/", financeHandler.UpsertBudget)
+					r.Delete("/{id}", financeHandler.DeleteBudget)
 				})
 			})
 

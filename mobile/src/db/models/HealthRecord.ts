@@ -12,6 +12,9 @@ export default class HealthRecord extends Model {
   @text('macros') macros?: string;
   @text('date') date!: string;
 
+  @text('push_status') pushStatus!: string;
+  @field('pushed_at') pushedAt?: number;
+
   @relation('notes', 'note_id') note!: Note;
 
   @readonly @date('created_at') createdAt!: Date;

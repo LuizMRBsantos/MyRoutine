@@ -6,9 +6,15 @@ export default class Transaction extends Model {
   static table = 'transactions';
 
   @field('value') value!: number;
+  @text('description') description?: string;
   @text('category') category!: string;
   @text('method') method?: string;
   @text('date') date!: string;
+
+  // 'pending' | 'synced' — o push para a API é unidirecional e idempotente
+  // (o servidor deduplica por source_type='track_day' + source_id = este id).
+  @text('push_status') pushStatus!: string;
+  @field('pushed_at') pushedAt?: number;
 
   @relation('notes', 'note_id') note!: Note;
 

@@ -33,6 +33,23 @@ curl $BASE/habits -H "Authorization: Bearer <token>"
 
 Health check: `curl http://localhost:8082/health`.
 
+## Mobile (Expo SDK 56)
+
+```bash
+cd mobile && npm install
+
+# WatermelonDB uses JSI (native code) — Expo Go does NOT work.
+# A development build is required:
+npx expo prebuild
+npx expo run:ios      # or: npx expo run:android
+```
+
+The app resolves the API base URL from the Metro host (`http://<host>:8082`);
+override with `EXPO_PUBLIC_API_URL` when pointing at another server. Log in with
+the same account used on the web — the journal is stored locally and pushed to
+the server with the "Sincronizar" button (one-way push, idempotent by
+`source_type='track_day'` + `source_id`).
+
 ## Migrations
 
 - Files live in `backend/internal/db/migrations/` using the golang-migrate

@@ -3,6 +3,7 @@ export interface ParsedLine {
   bulletType: 'task_pending' | 'task_done' | 'task_migrated' | 'note' | 'event' | 'none';
   transaction?: {
     value: number;
+    description: string;
     category: string;
     method?: string;
   };
@@ -35,8 +36,8 @@ export function parseLine(line: string): ParsedLine {
   if (financeMatch) {
     transaction = {
       value: parseFloat(financeMatch[1].replace(',', '.')),
-      category: financeMatch[3] ? financeMatch[3].toLowerCase() : 'geral',
-      // Note: The description part (Almoço) could be used as well if needed.
+      description: financeMatch[2].trim(),
+      category: financeMatch[3] ? financeMatch[3].toLowerCase() : 'other',
     };
   }
 

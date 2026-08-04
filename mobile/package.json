@@ -6,10 +6,12 @@
     "@nozbe/watermelondb": "^0.28.0",
     "expo": "~56.0.12",
     "expo-constants": "~56.0.18",
+    "expo-crypto": "~56.0.4",
     "expo-font": "~56.0.7",
     "expo-linear-gradient": "~56.0.4",
     "expo-linking": "~56.0.14",
     "expo-router": "~56.2.11",
+    "expo-secure-store": "~56.0.4",
     "expo-splash-screen": "~56.0.10",
     "expo-status-bar": "~56.0.4",
     "expo-symbols": "~56.0.6",
@@ -24,7 +26,7 @@
     "react-native-worklets": "0.8.3"
   },
   "devDependencies": {
-    "@babel/plugin-proposal-decorators": "^8.0.2",
+    "@babel/plugin-proposal-decorators": "^7.25.9",
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3"
   },

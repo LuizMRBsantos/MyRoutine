@@ -48,3 +48,8 @@ docker-compose.override.yml
 trivy-results.json
 semgrep-results.json
 zap-results.json
+
+# ========================
+# Claude Code local config
+# ========================
+.claude/

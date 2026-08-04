@@ -241,6 +241,7 @@ h1, h2, h3, h4, h5, h6 {
   font-size: var(--font-size-md);
   color: var(--color-text-primary);
   outline: none;
+  color-scheme: dark;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 .input:focus {
@@ -248,6 +249,35 @@ h1, h2, h3, h4, h5, h6 {
   box-shadow: 0 0 0 3px var(--color-accent-light);
 }
 .input::placeholder { color: var(--color-text-tertiary); }
+
+/* Remove caixas cinzas nativas do Chrome / WebKit para inputs de hora e data */
+.input::-webkit-datetime-edit-fields-wrapper,
+.input::-webkit-datetime-edit-text,
+.input::-webkit-datetime-edit-hour-field,
+.input::-webkit-datetime-edit-minute-field,
+.input::-webkit-datetime-edit-ampm-field {
+  background: transparent;
+  color: var(--color-text-primary);
+  padding: 0;
+}
+
+.input::-webkit-datetime-edit-hour-field:focus,
+.input::-webkit-datetime-edit-minute-field:focus,
+.input::-webkit-datetime-edit-ampm-field:focus {
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+  border-radius: 4px;
+}
+
+.input::-webkit-calendar-picker-indicator {
+  filter: invert(0.8);
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity var(--transition-fast);
+}
+.input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
 
 /* ─── Scrollbar ──────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }

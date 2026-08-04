@@ -1,7 +1,9 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createBrowserRouter } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
+import { DashboardPage } from '@/pages/DashboardPage'
 import { HabitsPage } from '@/pages/HabitsPage'
+import { PlannerPage } from '@/pages/PlannerPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
@@ -33,7 +35,15 @@ const router = createBrowserRouter([
     children: [
       {
         path: '/',
+        element: <DashboardPage />,
+      },
+      {
+        path: '/habits',
         element: <HabitsPage />,
+      },
+      {
+        path: '/planner',
+        element: <PlannerPage />,
       },
     ],
   },

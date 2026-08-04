@@ -1,0 +1,90 @@
+import { motion } from 'framer-motion'
+import type { Habit } from '@/types/habit'
+import { useCheckIn, useUndoCheckIn } from '@/hooks/useHabits'
+import styles from './TodayHabits.module.css'
+
+interface TodayHabitsProps {
+  habits: Habit[]
+  isLoading: boolean
+}
+
+export function TodayHabits({ habits, isLoading }: TodayHabitsProps) {
+  const checkIn = useCheckIn()
+  const undoCheckIn = useUndoCheckIn()
+
+  const handleToggle = (habit: Habit) => {
+    if (habit.completed_today) {
+      undoCheckIn.mutate({ id: habit.id })
+    } else {
+      checkIn.mutate({ id: habit.id })
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className={styles.skeletonList}>
+        {[1, 2, 3].map(i => <div key={i} className={styles.skeleton} />)}
+      </div>
+    )
+  }
+
+  if (habits.length === 0) {
+    return (
+      <p className={styles.empty}>Nenhum hábito para hoje. <a href="/habits">Criar hábito →</a></p>
+    )
+  }
+
+  const completedCount = habits.filter(h => h.completed_today).length
+
+  return (
+    <div className={styles.wrapper}>
+      <div className={styles.progressHeader}>
+        <span className={styles.progressText}>
+          {completedCount} de {habits.length} concluídos
+        </span>
+        <span className={styles.progressPct}>
+          {Math.round((completedCount / habits.length) * 100)}%
+        </span>
+      </div>
+
+      {/* Progress bar */}
+      <div className={styles.progressBar}>
+        <motion.div
+          className={styles.progressFill}
+          initial={{ width: 0 }}
+          animate={{ width: `${(completedCount / habits.length) * 100}%` }}
+          transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
+        />
+      </div>
+
+      {/* Habit rows */}
+      <div className={styles.list}>
+        {habits.map((habit) => (
+          <div key={habit.id} className={styles.row}>
+            <div
+              className={styles.habitIcon}
+              style={{ background: habit.color + '18', color: habit.color }}
+            >
+              {habit.icon}
+            </div>
+            <span className={`${styles.habitName} ${habit.completed_today ? styles.done : ''}`}>
+              {habit.name}
+            </span>
+            {habit.current_streak > 0 && (
+              <span className={styles.streakBadge}>🔥{habit.current_streak}</span>
+            )}
+            <motion.button
+              className={`${styles.checkBtn} ${habit.completed_today ? styles.checkBtnDone : ''}`}
+              style={habit.completed_today ? { background: habit.color, borderColor: habit.color } : {}}
+              onClick={() => handleToggle(habit)}
+              whileTap={{ scale: 0.85 }}
+              id={`dashboard-checkin-${habit.id}`}
+            >
+              {habit.completed_today ? '✓' : '○'}
+            </motion.button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}

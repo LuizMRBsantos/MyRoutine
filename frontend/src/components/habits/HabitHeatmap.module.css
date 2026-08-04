@@ -1,0 +1,67 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(13, 1fr);
+  gap: 3px;
+}
+
+.cell {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: var(--color-border);
+  transition: transform var(--transition-fast);
+  cursor: default;
+}
+
+.cell:hover {
+  transform: scale(1.3);
+}
+
+.cell[data-level="1"] { background: #0071E330; }
+.cell[data-level="2"] { background: #0071E360; }
+.cell[data-level="3"] { background: #0071E399; }
+.cell[data-level="4"] { background: #0071E3; }
+
+@media (prefers-color-scheme: dark) {
+  .cell[data-level="1"] { background: #0A84FF25; }
+  .cell[data-level="2"] { background: #0A84FF55; }
+  .cell[data-level="3"] { background: #0A84FF88; }
+  .cell[data-level="4"] { background: #0A84FF; }
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  justify-content: flex-end;
+}
+
+.legendLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  margin: 0 var(--space-1);
+}
+
+.legendCell {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--color-border);
+}
+
+.legendCell[data-level="1"] { background: #0071E330; }
+.legendCell[data-level="2"] { background: #0071E360; }
+.legendCell[data-level="3"] { background: #0071E399; }
+.legendCell[data-level="4"] { background: #0071E3; }
+
+@media (prefers-color-scheme: dark) {
+  .legendCell[data-level="1"] { background: #0A84FF25; }
+  .legendCell[data-level="2"] { background: #0A84FF55; }
+  .legendCell[data-level="3"] { background: #0A84FF88; }
+  .legendCell[data-level="4"] { background: #0A84FF; }
+}

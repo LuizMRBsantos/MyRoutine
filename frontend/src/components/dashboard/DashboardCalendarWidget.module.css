@@ -1,0 +1,389 @@
+.container {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  margin-top: var(--space-6);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.titleArea {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.navGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 2px;
+}
+
+.navBtn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.navBtn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.navToday {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-accent);
+  padding: 4px 12px;
+}
+
+.viewTabs {
+  display: flex;
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 3px;
+  gap: 2px;
+}
+
+.viewTab {
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold);
+  padding: 5px 14px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.viewTabActive {
+  background: var(--color-accent);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 113, 227, 0.3);
+}
+
+.monthContainer {
+  margin-top: var(--space-2);
+}
+
+/* ══════════════ TEMPO COMPLETO - ESTILO GOOGLE CALENDAR ══════════════ */
+
+.weekView {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  overflow: hidden;
+}
+
+.weekHeaderRow {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-card);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.timeGutterHeader {
+  border-right: 1px solid var(--color-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  font-weight: 600;
+}
+
+.dayHeaderCell {
+  padding: 10px 6px;
+  text-align: center;
+  border-right: 1px solid var(--color-border-subtle);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.dayHeaderCell:last-child {
+  border-right: none;
+}
+
+.dayHeaderToday {
+  background: rgba(0, 113, 227, 0.05);
+}
+
+.dayName {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dayNum {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all var(--transition-fast);
+}
+
+.dayNumToday {
+  background: var(--color-accent);
+  color: #fff;
+  box-shadow: 0 0 10px rgba(0, 113, 227, 0.4);
+}
+
+/* Grid de Tempo (Scrollável) */
+.timeGridScroll {
+  max-height: 560px;
+  overflow-y: auto;
+  position: relative;
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  background: var(--color-bg-card);
+}
+
+.timeGutter {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-card);
+  user-select: none;
+}
+
+.hourLabel {
+  height: 60px; /* Cada hora tem 60px de altura (1px por minuto) */
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-right: 8px;
+  padding-top: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-tertiary);
+  box-sizing: border-box;
+}
+
+.dayColumn {
+  position: relative;
+  border-right: 1px solid var(--color-border-subtle);
+  min-height: 1140px; /* 19 horas (05:00 - 24:00) * 60px */
+  background: var(--color-bg-card);
+  cursor: pointer;
+}
+
+.dayColumn:last-child {
+  border-right: none;
+}
+
+.dayColumnToday {
+  background: rgba(0, 113, 227, 0.02);
+}
+
+.hourLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--color-border-subtle);
+  pointer-events: none;
+}
+
+.halfHourLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+}
+
+/* ── Ponteiro Vermelho do Tempo Atual (Estilo Google Calendar) ── */
+.redTimeLine {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #ff3b30;
+  z-index: 20;
+  pointer-events: none;
+  box-shadow: 0 0 6px rgba(255, 59, 48, 0.6);
+}
+
+.redTimeDot {
+  position: absolute;
+  left: -5px;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  background: #ff3b30;
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(255, 59, 48, 0.8);
+}
+
+/* ── Blocos Proporcionais de Tarefa (Estilo Google Calendar) ── */
+.taskBlock {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  border-radius: var(--radius-md);
+  padding: 4px 6px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 2px;
+  cursor: pointer;
+  z-index: 5;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  box-sizing: border-box;
+}
+
+.taskBlock:hover {
+  transform: scale(1.02);
+  z-index: 15;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.taskBlockHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.taskBlockTitle {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+.taskBlockTime {
+  font-size: 10px;
+  font-weight: 600;
+  opacity: 0.9;
+  white-space: nowrap;
+}
+
+.taskBlockDesc {
+  font-size: 10px;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Seção do Dia Todo (Tarefas sem horário) */
+.allDayRow {
+  display: grid;
+  grid-template-columns: 60px repeat(7, 1fr);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-elevated);
+  min-height: 28px;
+  align-items: center;
+}
+
+.allDayLabel {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  text-align: center;
+  text-transform: uppercase;
+  padding: 4px;
+}
+
+.allDayCell {
+  padding: 4px;
+  border-right: 1px solid var(--color-border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-height: 26px;
+}
+
+.allDayCell:last-child {
+  border-right: none;
+}
+
+.allDayPill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+@media (max-width: 850px) {
+  .weekHeaderRow,
+  .timeGridScroll,
+  .allDayRow {
+    grid-template-columns: 46px repeat(7, minmax(110px, 1fr));
+  }
+  .timeGridScroll {
+    overflow-x: auto;
+  }
+}

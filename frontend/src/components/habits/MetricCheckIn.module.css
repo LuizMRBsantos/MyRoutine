@@ -1,0 +1,112 @@
+.wrapper {
+  margin-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-4);
+  overflow: hidden;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.metricsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-3);
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Campo de meta — destaque sutil com borda esquerda colorida */
+.inputGroupTarget {
+  padding-left: var(--space-2);
+  border-left: 2px solid currentColor;
+  opacity: 1;
+}
+
+.inputGroup label {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.unitTag {
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-normal);
+}
+
+/* Badge "meta" — colorido com a cor do hábito */
+.badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* Badge "opcional" — sempre neutro/cinza */
+.badgeOptional {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-tertiary);
+  font-style: italic;
+}
+
+.input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.cancelBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.cancelBtn:hover {
+  text-decoration: underline;
+}
+
+.submitBtn {
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  border: none;
+  cursor: pointer;
+  transition: filter var(--transition-fast);
+}
+
+.submitBtn:hover {
+  filter: brightness(1.1);
+}

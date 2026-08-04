@@ -1,5 +1,5 @@
 import api from '@/services/api'
-import type { Habit, HabitLog, HeatmapEntry, HabitStats, CreateHabitInput } from '@/types/habit'
+import type { Habit, HabitLog, HeatmapEntry, HabitStats, CreateHabitInput, CheckInInput } from '@/types/habit'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 // ─── Query Keys ──────────────────────────────────────────────────────────────
@@ -33,8 +33,8 @@ const habitsApi = {
     await api.delete(`/habits/${id}`)
   },
 
-  checkIn: async (id: string, date?: string, notes?: string): Promise<HabitLog> => {
-    const { data } = await api.post(`/habits/${id}/checkin`, { date, notes })
+  checkIn: async (id: string, input: CheckInInput & { date?: string }): Promise<HabitLog> => {
+    const { data } = await api.post(`/habits/${id}/checkin`, input)
     return data
   },
 
@@ -89,6 +89,10 @@ export function useCreateHabit() {
       queryClient.invalidateQueries({ queryKey: habitKeys.list() })
       queryClient.invalidateQueries({ queryKey: habitKeys.stats() })
     },
+    onError: (error: any) => {
+      console.error('Create habit error:', error)
+      alert('Erro ao criar hábito: ' + (error.response?.data?.error || error.message))
+    }
   })
 }
 
@@ -105,8 +109,8 @@ export function useDeleteHabit() {
 export function useCheckIn() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, date, notes }: { id: string; date?: string; notes?: string }) =>
-      habitsApi.checkIn(id, date, notes),
+    mutationFn: ({ id, ...input }: { id: string } & CheckInInput & { date?: string }) =>
+      habitsApi.checkIn(id, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.list() })
       queryClient.invalidateQueries({ queryKey: habitKeys.stats() })

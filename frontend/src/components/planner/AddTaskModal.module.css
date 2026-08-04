@@ -1,0 +1,246 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  z-index: 200;
+}
+
+.wrapper {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 201;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-6);
+  pointer-events: none;
+}
+
+.modal {
+  pointer-events: auto;
+  width: 580px;
+  max-width: 92vw;
+  max-height: calc(100vh - 64px);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-2xl);
+  padding: var(--space-8);
+  box-shadow: 0 24px 72px rgba(0, 0, 0, 0.28);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+/* ─── Header ─────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.headerIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.dateLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  text-transform: capitalize;
+  margin-top: 2px;
+}
+
+.closeBtn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  font-size: 1.6rem;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.closeBtn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
+}
+
+/* ─── Form ───────────────────────────────────────── */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.label {
+  font-size: 11px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-2);
+}
+
+.optional {
+  font-weight: var(--font-weight-normal);
+  text-transform: none;
+  color: var(--color-text-tertiary);
+  font-style: italic;
+  letter-spacing: 0;
+}
+
+/* ─── Date Selector Button ───────────────────────── */
+.dateSelectorBtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.dateSelectorBtn:hover {
+  border-color: var(--color-accent);
+  background: var(--color-bg-elevated);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.dateLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.dateIcon {
+  font-size: 1.15rem;
+}
+
+.dateText {
+  font-weight: var(--font-weight-medium);
+  text-transform: capitalize;
+  color: var(--color-text-primary);
+}
+
+.dateBadge {
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-light);
+  color: var(--color-accent);
+  font-weight: var(--font-weight-semibold);
+}
+
+.dateChevron {
+  color: var(--color-text-tertiary);
+  font-size: 0.75rem;
+  transition: transform var(--transition-fast);
+}
+
+/* ─── Category Pills ─────────────────────────────── */
+.categoryGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.catBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  border: 1.5px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.catBtn span:first-child { font-size: 1.1rem; }
+.catBtn:hover { background: var(--color-bg-secondary); color: var(--color-text-primary); }
+.catBtnActive {
+  border-width: 1.5px;
+  font-weight: var(--font-weight-semibold);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* ─── Time Row ───────────────────────────────────── */
+.timeRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+/* ─── Priority ───────────────────────────────────── */
+.priorityRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+}
+
+.priorityBtn {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.priorityBtn:hover { background: var(--color-bg-elevated); color: var(--color-text-primary); }
+.priorityBtnActive {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-accent-light);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: 0 2px 8px rgba(0, 113, 227, 0.12);
+}
+
+/* ─── Textarea ───────────────────────────────────── */
+.textarea {
+  resize: none;
+  font-family: inherit;
+  line-height: var(--line-height-relaxed);
+}
+
+/* ─── Actions ────────────────────────────────────── */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}

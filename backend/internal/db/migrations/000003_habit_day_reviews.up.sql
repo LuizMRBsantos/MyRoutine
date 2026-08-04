@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS habit_day_reviews (
     UNIQUE(habit_id, review_date)
 );
 
-CREATE INDEX idx_habit_day_reviews_user ON habit_day_reviews(user_id, review_date DESC);
-CREATE INDEX idx_habit_day_reviews_habit ON habit_day_reviews(habit_id, review_date);
+CREATE INDEX IF NOT EXISTS idx_habit_day_reviews_user ON habit_day_reviews(user_id, review_date DESC);
+CREATE INDEX IF NOT EXISTS idx_habit_day_reviews_habit ON habit_day_reviews(habit_id, review_date);
 
 COMMENT ON TABLE habit_day_reviews IS 'Registro de decisões conscientes sobre dias sem check-in (espírito Bullet Journal)';
 COMMENT ON COLUMN habit_day_reviews.status IS 'migrated = intenção de fazer na próxima semana | discarded = descartado conscientemente';

@@ -4,7 +4,10 @@
 -- ============================================================
 
 -- Tipo de check-in do hábito
-CREATE TYPE habit_check_type AS ENUM ('simple', 'timed', 'deadline', 'metric');
+DO $$ BEGIN
+    CREATE TYPE habit_check_type AS ENUM ('simple', 'timed', 'deadline', 'metric');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ────────────────────────────────────────────────────────────
 -- HABITS — novos campos de configuração por tipo
@@ -21,13 +24,20 @@ COMMENT ON COLUMN habits.deadline_time IS 'Para check_type=deadline: horário li
 COMMENT ON COLUMN habits.metric_config IS 'Para check_type=metric: definição dos campos. Ex: [{"key":"km","label":"Quilômetros","unit":"km"},{"key":"calories","label":"Calorias","unit":"kcal"}]';
 
 -- Constraints para garantir dados consistentes
-ALTER TABLE habits
-  ADD CONSTRAINT habits_timer_minutes_check
-    CHECK (check_type != 'timed' OR timer_minutes IS NOT NULL AND timer_minutes > 0),
-  ADD CONSTRAINT habits_deadline_time_check
-    CHECK (check_type != 'deadline' OR deadline_time IS NOT NULL),
-  ADD CONSTRAINT habits_metric_config_check
-    CHECK (check_type != 'metric' OR metric_config IS NOT NULL AND jsonb_array_length(metric_config) > 0);
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'habits_timer_minutes_check') THEN
+        ALTER TABLE habits ADD CONSTRAINT habits_timer_minutes_check
+            CHECK (check_type != 'timed' OR timer_minutes IS NOT NULL AND timer_minutes > 0);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'habits_deadline_time_check') THEN
+        ALTER TABLE habits ADD CONSTRAINT habits_deadline_time_check
+            CHECK (check_type != 'deadline' OR deadline_time IS NOT NULL);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'habits_metric_config_check') THEN
+        ALTER TABLE habits ADD CONSTRAINT habits_metric_config_check
+            CHECK (check_type != 'metric' OR metric_config IS NOT NULL AND jsonb_array_length(metric_config) > 0);
+    END IF;
+END $$;
 
 -- ────────────────────────────────────────────────────────────
 -- HABIT_LOGS — dados do check-in enriquecido

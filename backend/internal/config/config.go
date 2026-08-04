@@ -43,10 +43,13 @@ type Config struct {
 // Load reads configuration from environment variables.
 // In development, it also loads from a .env file if present.
 func Load() (*Config, error) {
-	// Load .env in non-production environments
+	// Load .env in non-production environments.
+	// Tries the working directory first, then the repo root (when running
+	// from backend/). The file is optional — absence is not an error.
 	if os.Getenv("APP_ENV") != "production" {
-		// Ignore error — .env is optional in CI/CD
-		_ = godotenv.Load("../.env")
+		if err := godotenv.Load(".env"); err != nil {
+			_ = godotenv.Load("../.env")
+		}
 	}
 
 	cfg := &Config{

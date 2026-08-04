@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 -- ────────────────────────────────────────────────────────────
 -- REFRESH TOKENS — JWT Rotation
@@ -36,13 +36,16 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     revoked_at  TIMESTAMPTZ
 );
 
-CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
-CREATE INDEX idx_refresh_tokens_token_hash ON refresh_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token_hash ON refresh_tokens(token_hash);
 
 -- ────────────────────────────────────────────────────────────
 -- HABITS
 -- ────────────────────────────────────────────────────────────
-CREATE TYPE habit_frequency AS ENUM ('daily', 'weekly', 'custom');
+DO $$ BEGIN
+    CREATE TYPE habit_frequency AS ENUM ('daily', 'weekly', 'custom');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 CREATE TABLE IF NOT EXISTS habits (
     id          UUID           PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -59,8 +62,8 @@ CREATE TABLE IF NOT EXISTS habits (
     updated_at  TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_habits_user_id ON habits(user_id);
-CREATE INDEX idx_habits_user_active ON habits(user_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_habits_user_id ON habits(user_id);
+CREATE INDEX IF NOT EXISTS idx_habits_user_active ON habits(user_id, is_active);
 
 -- ────────────────────────────────────────────────────────────
 -- HABIT LOGS — Check-ins diários
@@ -77,8 +80,8 @@ CREATE TABLE IF NOT EXISTS habit_logs (
     UNIQUE(habit_id, logged_date)
 );
 
-CREATE INDEX idx_habit_logs_habit_id ON habit_logs(habit_id);
-CREATE INDEX idx_habit_logs_user_date ON habit_logs(user_id, logged_date DESC);
+CREATE INDEX IF NOT EXISTS idx_habit_logs_habit_id ON habit_logs(habit_id);
+CREATE INDEX IF NOT EXISTS idx_habit_logs_user_date ON habit_logs(user_id, logged_date DESC);
 
 -- ────────────────────────────────────────────────────────────
 -- AUDIT LOG — Registro de ações sensíveis (DevSecOps)
@@ -95,8 +98,8 @@ CREATE TABLE IF NOT EXISTS audit_logs (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_audit_logs_user_id ON audit_logs(user_id);
-CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
 
 -- ────────────────────────────────────────────────────────────
 -- Auto-update updated_at trigger
@@ -109,10 +112,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS set_users_updated_at ON users;
 CREATE TRIGGER set_users_updated_at
     BEFORE UPDATE ON users
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
+DROP TRIGGER IF EXISTS set_habits_updated_at ON habits;
 CREATE TRIGGER set_habits_updated_at
     BEFORE UPDATE ON habits
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();

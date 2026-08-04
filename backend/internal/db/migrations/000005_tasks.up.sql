@@ -5,7 +5,7 @@
 -- Tarefas/eventos planejados com horário, duração e tipo específico.
 -- task_details (JSONB) carrega payload por categoria sem precisar de novas colunas.
 
-CREATE TABLE tasks (
+CREATE TABLE IF NOT EXISTS tasks (
   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
@@ -36,19 +36,19 @@ CREATE TABLE tasks (
   linked_habit_id  UUID REFERENCES habits(id) ON DELETE SET NULL,
 
   color            VARCHAR(7),
-  created_at       TIMESTAMP NOT NULL DEFAULT now(),
-  updated_at       TIMESTAMP NOT NULL DEFAULT now()
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- Índice principal: busca por usuário + data (diária/semanal)
-CREATE INDEX idx_tasks_user_date ON tasks (user_id, date);
+CREATE INDEX IF NOT EXISTS idx_tasks_user_date ON tasks (user_id, date);
 -- Índice para busca por status
-CREATE INDEX idx_tasks_user_status ON tasks (user_id, status);
+CREATE INDEX IF NOT EXISTS idx_tasks_user_status ON tasks (user_id, status);
 
 -- ─── Monthly Goals ──────────────────────────────────────────────────────────
 -- Metas mensais — sem horário específico, ciclo de revisão mensal.
 
-CREATE TABLE monthly_goals (
+CREATE TABLE IF NOT EXISTS monthly_goals (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 
@@ -60,10 +60,10 @@ CREATE TABLE monthly_goals (
 
   notes      TEXT,
   color      VARCHAR(7),
-  created_at TIMESTAMP NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_monthly_goals_user_month ON monthly_goals (user_id, month);
+CREATE INDEX IF NOT EXISTS idx_monthly_goals_user_month ON monthly_goals (user_id, month);
 
 -- ─── Down migration (referência) ─────────────────────────────────────────────
 -- DROP TABLE IF EXISTS monthly_goals;

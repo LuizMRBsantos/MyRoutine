@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { z } from 'zod'
 import type { Habit, CreateHabitInput, MetricField } from '@/types/habit'
+import { normalizeHabitPayload, validateHabit } from '@/lib/habitSchema'
 import styles from './HabitFormModal.module.css'
 
 const ICONS = ['⭐', '🔥', '💪', '📚', '🧘', '🏃', '💧', '🌱', '🎯', '✍️', '🙏', '💤', '🎵', '🥗', '🧠']
@@ -49,35 +49,6 @@ const METRIC_PRESETS: { label: string; fields: MetricField[] }[] = [
     ],
   },
 ]
-
-const habitSchema = z
-  .object({
-    name: z.string().trim().min(1, 'Dê um nome ao hábito'),
-    check_type: z.enum(['simple', 'timed', 'deadline', 'metric']),
-    timer_minutes: z.number().int().positive().optional(),
-    deadline_time: z.string().optional(),
-    metric_config: z
-      .array(z.object({
-        key: z.string().min(1),
-        label: z.string().min(1),
-        unit: z.string(),
-        is_target: z.boolean().optional(),
-        target_value: z.number().optional(),
-      }))
-      .optional(),
-    target_days: z.array(z.number()).min(1, 'Escolha ao menos um dia da semana'),
-  })
-  .superRefine((data, ctx) => {
-    if (data.check_type === 'timed' && !data.timer_minutes) {
-      ctx.addIssue({ code: 'custom', message: 'Informe a duração do timer' })
-    }
-    if (data.check_type === 'deadline' && !data.deadline_time) {
-      ctx.addIssue({ code: 'custom', message: 'Informe o horário limite' })
-    }
-    if (data.check_type === 'metric' && !data.metric_config?.length) {
-      ctx.addIssue({ code: 'custom', message: 'Adicione ao menos uma métrica' })
-    }
-  })
 
 function initialForm(habit?: Habit): CreateHabitInput {
   if (habit) {
@@ -134,17 +105,11 @@ export function HabitFormModal({ habit, isPending, onSave, onClose }: HabitFormM
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const payload: CreateHabitInput = { ...form, name: form.name.trim() }
-    if (payload.check_type !== 'timed') delete payload.timer_minutes
-    if (payload.check_type !== 'deadline' || !payload.deadline_time) delete payload.deadline_time
-    if (payload.check_type !== 'metric' || !payload.metric_config?.length) delete payload.metric_config
-    if (payload.check_type === 'metric') {
-      payload.metric_config = payload.metric_config?.filter((m) => m.key && m.label)
-    }
+    const payload = normalizeHabitPayload(form)
 
-    const result = habitSchema.safeParse(payload)
-    if (!result.success) {
-      setError(result.error.issues[0]?.message ?? 'Verifique os campos do formulário')
+    const validationError = validateHabit(payload)
+    if (validationError) {
+      setError(validationError)
       return
     }
     setError(null)

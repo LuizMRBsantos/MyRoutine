@@ -58,16 +58,16 @@ type BudgetDTO struct {
 }
 
 type CategorySummary struct {
-	Category     string `json:"category"`
-	SpentCents   int64  `json:"spent_cents"`
-	BudgetCents  *int64 `json:"budget_cents,omitempty"`
+	Category    string `json:"category"`
+	SpentCents  int64  `json:"spent_cents"`
+	BudgetCents *int64 `json:"budget_cents,omitempty"`
 }
 
 type FinanceSummaryDTO struct {
-	Month         string            `json:"month"`
-	IncomeCents   int64             `json:"income_cents"`
-	ExpenseCents  int64             `json:"expense_cents"`
-	ByCategory    []CategorySummary `json:"by_category"`
+	Month        string            `json:"month"`
+	IncomeCents  int64             `json:"income_cents"`
+	ExpenseCents int64             `json:"expense_cents"`
+	ByCategory   []CategorySummary `json:"by_category"`
 }
 
 // ─── Transactions ─────────────────────────────────────────────────────────────

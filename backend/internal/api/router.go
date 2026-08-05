@@ -106,9 +106,9 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 
 			// Tasks (planejamento diário/semanal)
 			r.Route("/tasks", func(r chi.Router) {
-				r.Get("/", taskHandler.ListByDate)        // ?date=YYYY-MM-DD
+				r.Get("/", taskHandler.ListByDate) // ?date=YYYY-MM-DD
 				r.Post("/", taskHandler.Create)
-				r.Get("/week", taskHandler.ListByWeek)    // ?start=...&end=...
+				r.Get("/week", taskHandler.ListByWeek) // ?start=...&end=...
 				r.Route("/{id}", func(r chi.Router) {
 					r.Patch("/", taskHandler.Update)
 					r.Delete("/", taskHandler.Delete)
@@ -119,14 +119,14 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 			// Finance (transações e orçamentos mensais)
 			r.Route("/finance", func(r chi.Router) {
 				r.Route("/transactions", func(r chi.Router) {
-					r.Get("/", financeHandler.ListTransactions)   // ?from&to&category
+					r.Get("/", financeHandler.ListTransactions) // ?from&to&category
 					r.Post("/", financeHandler.CreateTransaction)
 					r.Patch("/{id}", financeHandler.UpdateTransaction)
 					r.Delete("/{id}", financeHandler.DeleteTransaction)
 				})
-				r.Get("/summary", financeHandler.Summary)          // ?month=YYYY-MM-DD
+				r.Get("/summary", financeHandler.Summary) // ?month=YYYY-MM-DD
 				r.Route("/budgets", func(r chi.Router) {
-					r.Get("/", financeHandler.ListBudgets)         // ?month=YYYY-MM-DD
+					r.Get("/", financeHandler.ListBudgets) // ?month=YYYY-MM-DD
 					r.Put("/", financeHandler.UpsertBudget)
 					r.Delete("/{id}", financeHandler.DeleteBudget)
 				})
@@ -142,7 +142,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 
 			// Study sessions
 			r.Route("/study", func(r chi.Router) {
-				r.Get("/sessions", studyHandler.ListSessions)   // ?from&to&subject
+				r.Get("/sessions", studyHandler.ListSessions) // ?from&to&subject
 				r.Post("/sessions", studyHandler.CreateSession)
 				r.Delete("/sessions/{id}", studyHandler.DeleteSession)
 				r.Get("/summary", studyHandler.Summary)
@@ -150,7 +150,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 
 			// Monthly Goals
 			r.Route("/goals", func(r chi.Router) {
-				r.Get("/", taskHandler.ListGoals)          // ?month=YYYY-MM-DD
+				r.Get("/", taskHandler.ListGoals) // ?month=YYYY-MM-DD
 				r.Post("/", taskHandler.CreateGoal)
 				r.Route("/{id}", func(r chi.Router) {
 					r.Patch("/status", taskHandler.UpdateGoalStatus)

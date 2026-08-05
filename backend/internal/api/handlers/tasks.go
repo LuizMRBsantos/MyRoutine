@@ -30,9 +30,9 @@ func NewTaskHandler(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) *T
 // Allowed values for free-text columns (schema documents them only in comments,
 // there is no CHECK constraint — the API is the gate).
 var (
-	validTaskStatuses  = map[string]bool{"planned": true, "in_progress": true, "done": true, "reviewed": true}
+	validTaskStatuses   = map[string]bool{"planned": true, "in_progress": true, "done": true, "reviewed": true}
 	validTaskPriorities = map[string]bool{"high": true, "medium": true, "low": true}
-	validGoalStatuses  = map[string]bool{"active": true, "done": true, "abandoned": true}
+	validGoalStatuses   = map[string]bool{"active": true, "done": true, "abandoned": true}
 )
 
 // ─── Tasks ───────────────────────────────────────────────────────────────────

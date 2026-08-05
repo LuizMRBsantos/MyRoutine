@@ -18,8 +18,8 @@ type TaskDTO struct {
 	ID              string          `json:"id"`
 	UserID          string          `json:"user_id"`
 	Title           string          `json:"title"`
-	Date            string          `json:"date"`            // "YYYY-MM-DD"
-	StartTime       *string         `json:"start_time"`      // "HH:MM" or nil
+	Date            string          `json:"date"`             // "YYYY-MM-DD"
+	StartTime       *string         `json:"start_time"`       // "HH:MM" or nil
 	DurationMinutes *int            `json:"duration_minutes"` // nil = sem duração definida
 	Category        string          `json:"category"`
 	Status          string          `json:"status"`

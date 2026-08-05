@@ -155,4 +155,3 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	// Always return 200 — don't reveal token state
 	respondJSON(w, http.StatusOK, map[string]string{"message": "logged out"})
 }
-

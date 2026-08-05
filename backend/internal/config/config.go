@@ -28,9 +28,9 @@ type Config struct {
 	RedisPassword string
 
 	// JWT
-	JWTSecret             string
-	JWTExpiryHours        string
-	JWTRefreshExpiryDays  string
+	JWTSecret            string
+	JWTExpiryHours       string
+	JWTRefreshExpiryDays string
 
 	// Claude AI
 	AnthropicAPIKey string

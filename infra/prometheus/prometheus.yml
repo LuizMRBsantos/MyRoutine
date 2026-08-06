@@ -5,13 +5,14 @@ global:
 scrape_configs:
   - job_name: "myroutine-backend"
     static_configs:
-      - targets: ["host.docker.internal:8080"]
+      - targets: ["api:8080"]
     metrics_path: /metrics
 
-  - job_name: "postgres"
+  - job_name: "prometheus"
     static_configs:
-      - targets: ["postgres:5432"]
+      - targets: ["localhost:9090"]
 
-  - job_name: "redis"
-    static_configs:
-      - targets: ["redis:6379"]
+# Postgres and Redis do not speak the Prometheus protocol on their own — they
+# need postgres_exporter / redis_exporter sidecars. Scraping :5432 and :6379
+# directly only produces permanently failing targets, so those jobs are left
+# out until the exporters are actually added.

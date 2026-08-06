@@ -54,6 +54,51 @@ services:
       retries: 5
 
   # ─────────────────────────────────────
+  # API — Go backend (migrations run on startup)
+  # ─────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+    container_name: myroutine_api
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      APP_PORT: "8080"
+      DATABASE_URL: postgres://${DB_USER:-myroutine}:${DB_PASSWORD:-changeme_in_production}@postgres:5432/${DB_NAME:-myroutine_db}?sslmode=disable
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:-myroutine}
+      DB_NAME: ${DB_NAME:-myroutine_db}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_EXPIRY_HOURS: ${JWT_EXPIRY_HOURS:-24}
+      JWT_REFRESH_EXPIRY_DAYS: ${JWT_REFRESH_EXPIRY_DAYS:-30}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - myroutine_net
+
+  # ─────────────────────────────────────
+  # Frontend — React SPA served by nginx
+  # ─────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+    container_name: myroutine_frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    networks:
+      - myroutine_net
+
+  # ─────────────────────────────────────
   # Nginx — Reverse Proxy
   # ─────────────────────────────────────
   nginx:
@@ -65,8 +110,8 @@ services:
     volumes:
       - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - postgres
-      - redis
+      - api
+      - frontend
     networks:
       - myroutine_net
 

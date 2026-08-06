@@ -9,7 +9,9 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "type-check": "tsc --noEmit",
+    "test:ci": "vitest run"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.2",

@@ -7,7 +7,7 @@
 - Node 20+
 - A `.env` file at the repo root (copy `.env.example` and fill in `JWT_SECRET` ≥ 32 chars). Note: the frontend Vite proxy targets port **8082**, so keep `APP_PORT=8082`.
 
-## Start
+## Start — development (hot reload)
 
 ```bash
 # 1. Infrastructure (Postgres + Redis)
@@ -20,6 +20,28 @@ cd backend && go run ./cmd/api/
 # 3. Frontend (http://localhost:5173, proxies /api → localhost:8082)
 cd frontend && npm install && npm run dev
 ```
+
+## Start — full stack in containers
+
+```bash
+docker compose up -d --build
+```
+
+Everything is then reachable through nginx on port 80: the SPA at
+<http://localhost/> and the API under <http://localhost/api/v1/>. Grafana is on
+:3001 and Prometheus on :9090 (scraping the API's `/metrics`).
+
+## Tests
+
+```bash
+cd backend  && go test ./...          # unit + integration (testcontainers)
+cd frontend && npm test               # Vitest
+cd mobile   && npm test               # bullet-journal parser
+```
+
+Backend integration tests start a throwaway Postgres through testcontainers and
+apply the real migrations. They skip automatically when Docker is unavailable —
+set `SKIP_INTEGRATION=1` to skip them explicitly and run only unit tests.
 
 ## Smoke test (API)
 
@@ -60,9 +82,23 @@ the server with the "Sincronizar" button (one-way push, idempotent by
   non-destructive; new columns NULLable or with DEFAULT; never DROP in the
   same migration that adds a replacement.
 
+## Observability
+
+The API exports Prometheus metrics at `/metrics`:
+
+- `myroutine_http_requests_total{method,route,status}`
+- `myroutine_http_request_duration_seconds{method,route}`
+- `myroutine_http_requests_in_flight`
+
+Labels use the chi **route pattern** (`/api/v1/habits/{habitID}`), never the raw
+path — otherwise every id would create its own time series.
+
 ## Known conscious debt
 
 - Redis runs in compose but no application code uses it yet (future: caching,
   rate limiting).
 - `audit_logs` table exists but nothing writes to it yet.
 - `internal/ai/` is empty — Claude API integration is a future module.
+- Postgres/Redis are not scraped by Prometheus: that needs
+  `postgres_exporter` / `redis_exporter` sidecars, so those jobs were left out
+  rather than kept as permanently failing targets.

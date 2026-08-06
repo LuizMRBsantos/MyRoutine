@@ -25,6 +25,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
 	r.Use(custommiddleware.Logger(logger))
+	r.Use(custommiddleware.Metrics())
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(30 * time.Second))
 

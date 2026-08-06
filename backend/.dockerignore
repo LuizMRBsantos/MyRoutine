@@ -1,0 +1,10 @@
+bin
+vendor
+coverage.out
+coverage.html
+*.test
+.env
+.env.*
+!.env.example
+Dockerfile
+.dockerignore

@@ -52,10 +52,26 @@ jobs:
         run: go mod verify
         working-directory: backend
 
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "These files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+        working-directory: backend
+
       - name: Build
         run: go build ./...
         working-directory: backend
 
+      - name: Vet
+        run: go vet ./...
+        working-directory: backend
+
+      # Integration tests spin up Postgres via testcontainers, using the
+      # Docker daemon already present on the runner.
       - name: Run tests
         run: go test -v -race -coverprofile=coverage.out ./...
         working-directory: backend
@@ -133,26 +149,67 @@ jobs:
         working-directory: frontend
 
   # ─────────────────────────────────────────────────────────────
-  # 4. CONTAINER SECURITY — Trivy scan na imagem Docker
+  # 4. MOBILE — Expo type check e testes do parser
+  # ─────────────────────────────────────────────────────────────
+  mobile:
+    name: 📱 Mobile (Expo)
+    runs-on: ubuntu-latest
+    needs: secret-scan
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: mobile
+
+      - name: Type check
+        run: npx tsc --noEmit
+        working-directory: mobile
+
+      # The bullet-journal parser is the entry point of everything the app
+      # pushes to the server, so it is the piece that must stay correct.
+      - name: Run tests
+        run: npm test
+        working-directory: mobile
+
+  # ─────────────────────────────────────────────────────────────
+  # 5. CONTAINER SECURITY — Trivy scan nas imagens Docker
   # ─────────────────────────────────────────────────────────────
   container-scan:
     name: 🐳 Container Security (Trivy)
     runs-on: ubuntu-latest
     needs: [backend, frontend]
 
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: backend
+            context: backend
+          - name: frontend
+            context: frontend
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Build Docker image
-        run: docker build -t myroutine-backend:${{ github.sha }} .
-        working-directory: backend
+        run: docker build -t myroutine-${{ matrix.name }}:${{ github.sha }} .
+        working-directory: ${{ matrix.context }}
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: "myroutine-backend:${{ github.sha }}"
+          image-ref: "myroutine-${{ matrix.name }}:${{ github.sha }}"
           format: "sarif"
-          output: "trivy-results.sarif"
+          output: "trivy-${{ matrix.name }}.sarif"
           severity: "CRITICAL,HIGH"
           exit-code: "1"  # Falha o CI se encontrar CRITICAL ou HIGH
 
@@ -160,7 +217,8 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
-          sarif_file: "trivy-results.sarif"
+          sarif_file: "trivy-${{ matrix.name }}.sarif"
+          category: "trivy-${{ matrix.name }}"
 
   # ─────────────────────────────────────────────────────────────
   # 5. SUMMARY — Badge de segurança
@@ -168,7 +226,7 @@ jobs:
   security-summary:
     name: 📊 Security Summary
     runs-on: ubuntu-latest
-    needs: [secret-scan, backend, frontend, container-scan]
+    needs: [secret-scan, backend, frontend, mobile, container-scan]
     if: always()
 
     steps:
@@ -180,4 +238,5 @@ jobs:
           echo "| Secret Scanning | ${{ needs.secret-scan.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Backend SAST | ${{ needs.backend.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Frontend Audit | ${{ needs.frontend.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Mobile | ${{ needs.mobile.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Container Scan | ${{ needs.container-scan.result }} |" >> $GITHUB_STEP_SUMMARY

@@ -7,7 +7,6 @@ import {
 import { HabitCard } from '@/components/habits/HabitCard'
 import { HabitDrawer } from '@/components/habits/HabitDrawer'
 import { HabitFormModal } from '@/components/habits/HabitFormModal'
-import { WeeklyReview } from '@/components/habits/WeeklyReview'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { toast } from '@/lib/toast'
 import type { Habit, CheckInInput } from '@/types/habit'
@@ -94,9 +93,6 @@ export function HabitsPage() {
           </div>
         </div>
       )}
-
-      {/* ─── Weekly Review ─────────────────────────────────── */}
-      <WeeklyReview />
 
       {/* ─── Habits by group ─────────────────────── */}
       {isLoading ? (

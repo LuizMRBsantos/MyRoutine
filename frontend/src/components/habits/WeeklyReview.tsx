@@ -4,6 +4,20 @@ import { useMissedDays, useReviewDay } from '@/hooks/useWeeklyReview'
 import type { MissedDay } from '@/hooks/useWeeklyReview'
 import styles from './WeeklyReview.module.css'
 
+/**
+ * ESTACIONADO — não está montado em nenhuma tela por decisão de produto.
+ *
+ * Este componente anunciava sozinho "N dias sem registro esperando revisão"
+ * na página de Hábitos. Isso contraria a skill habit-review-flow, que pede
+ * uma revisão semanal opt-in na navegação e proíbe contador de dias falhados
+ * em destaque — um dia sem log é estado neutro, não cobrança.
+ *
+ * O backend continua inteiro (habit_day_reviews, POST /habits/{id}/review,
+ * GET /reviews/missed) e os hooks abaixo seguem funcionando. Para trazer a
+ * revisão de volta, monte <WeeklyReview /> numa rota própria acessada por
+ * escolha do usuário — nunca embutida numa tela que ele abre por outro
+ * motivo.
+ */
 export function WeeklyReview() {
   const [open, setOpen] = useState(false)
   const { data: missedDays = [], isLoading } = useMissedDays()

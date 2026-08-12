@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useDeleteTransaction } from '@/hooks/useFinance'
+import { useDeleteTransaction, useDeleteInstallmentGroup } from '@/hooks/useFinance'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { categoryIcon, categoryLabel, formatCents } from '@/types/finance'
 import type { Transaction } from '@/types/finance'
@@ -14,6 +14,7 @@ interface TransactionListProps {
 
 export function TransactionList({ transactions, isLoading, isError }: TransactionListProps) {
   const deleteTransaction = useDeleteTransaction()
+  const deleteGroup = useDeleteInstallmentGroup()
   const [deleting, setDeleting] = useState<Transaction | null>(null)
 
   if (isLoading) return <p className={styles.hint}>Carregando...</p>
@@ -50,10 +51,20 @@ export function TransactionList({ transactions, isLoading, isError }: Transactio
                 >
                   <span className={styles.itemIcon}>{categoryIcon(t.category)}</span>
                   <div className={styles.itemBody}>
-                    <span className={styles.itemTitle}>{t.description}</span>
+                    <span className={styles.itemTitle}>
+                      {t.description}
+                      {t.installment_total && (
+                        <span className={styles.installmentTag}>
+                          {t.installment_number}/{t.installment_total}
+                        </span>
+                      )}
+                    </span>
                     <span className={styles.itemMeta}>
                       {categoryLabel(t.category)}
-                      {t.method ? ` · ${t.method}` : ''}
+                      {t.credit_card_name ? ` · 💳 ${t.credit_card_name}` : t.method ? ` · ${t.method}` : ''}
+                      {t.purchased_on && t.purchased_on !== t.occurred_on
+                        ? ` · compra ${new Date(t.purchased_on + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}`
+                        : ''}
                       {t.source_type === 'track_day' ? ' · via diário' : ''}
                     </span>
                   </div>
@@ -74,13 +85,23 @@ export function TransactionList({ transactions, isLoading, isError }: Transactio
         </div>
       ))}
 
+      {/* Apagar uma parcela sozinha deixaria a compra pela metade, então o
+          diálogo remove o grupo inteiro quando a transação é parcelada. */}
       <ConfirmDialog
         open={!!deleting}
-        title="Remover transação?"
-        message={`"${deleting?.description}" (${deleting ? formatCents(deleting.amount_cents) : ''}) será removida.`}
+        title={deleting?.installment_group_id ? 'Remover a compra parcelada?' : 'Remover transação?'}
+        message={
+          deleting?.installment_group_id
+            ? `"${deleting.description}" foi lançada em ${deleting.installment_total}x. Todas as parcelas serão removidas, inclusive as dos próximos meses.`
+            : `"${deleting?.description}" (${deleting ? formatCents(deleting.amount_cents) : ''}) será removida.`
+        }
         confirmLabel="Remover"
         onConfirm={() => {
-          if (deleting) deleteTransaction.mutate(deleting.id)
+          if (deleting?.installment_group_id) {
+            deleteGroup.mutate(deleting.installment_group_id)
+          } else if (deleting) {
+            deleteTransaction.mutate(deleting.id)
+          }
           setDeleting(null)
         }}
         onCancel={() => setDeleting(null)}

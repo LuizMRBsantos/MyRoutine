@@ -95,3 +95,13 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
 }
+
+.installmentTag {
+  margin-left: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-full);
+  padding: 1px var(--space-2);
+  font-variant-numeric: tabular-nums;
+}

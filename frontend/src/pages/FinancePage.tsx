@@ -4,6 +4,7 @@ import { QuickAddTransaction } from '@/components/finance/QuickAddTransaction'
 import { TransactionList } from '@/components/finance/TransactionList'
 import { CategoryBreakdown } from '@/components/finance/CategoryBreakdown'
 import { BudgetsPanel } from '@/components/finance/BudgetsPanel'
+import { CardsPanel } from '@/components/finance/CardsPanel'
 import { formatCents } from '@/types/finance'
 import styles from './FinancePage.module.css'
 
@@ -99,6 +100,12 @@ export function FinancePage() {
           <section className={`glass-card ${styles.section}`}>
             <h2 className={styles.sectionTitle}>Orçamentos do mês</h2>
             <BudgetsPanel month={month} />
+          </section>
+
+          {/* ── Credit cards ── */}
+          <section className={`glass-card ${styles.section}`}>
+            <h2 className={styles.sectionTitle}>Cartões</h2>
+            <CardsPanel />
           </section>
         </div>
       </div>

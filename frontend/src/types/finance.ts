@@ -7,10 +7,19 @@ export interface Transaction {
   category: string
   description: string
   method: string | null
+  /** Quando o dinheiro sai. Em compra no cartão, é o vencimento da fatura. */
   occurred_on: string
   source_type: 'manual' | 'track_day' | 'import'
   source_id?: string
   created_at: string
+  // Cartão e parcelamento (ausentes em pix/débito/dinheiro)
+  credit_card_id?: string
+  credit_card_name?: string
+  /** Data em que a compra foi feita, quando diferente da cobrança. */
+  purchased_on?: string
+  installment_group_id?: string
+  installment_number?: number
+  installment_total?: number
 }
 
 export interface CreateTransactionInput {
@@ -19,7 +28,26 @@ export interface CreateTransactionInput {
   category: string
   description: string
   method?: string
+  /** Em compra no cartão, é a data da COMPRA — a cobrança é calculada. */
   occurred_on: string
+  credit_card_id?: string
+  installments?: number
+}
+
+export interface CreditCard {
+  id: string
+  name: string
+  closing_day: number
+  due_day: number
+  color: string | null
+  is_active: boolean
+}
+
+export interface CreateCreditCardInput {
+  name: string
+  closing_day: number
+  due_day: number
+  color?: string
 }
 
 export interface Budget {

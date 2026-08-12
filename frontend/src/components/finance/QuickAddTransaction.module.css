@@ -48,3 +48,43 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* Classes de layout referenciadas pelo TSX; sem elas o React renderiza
+   class="input undefined". Mantidas mínimas — o grid é quem posiciona. */
+.description,
+.category,
+.date,
+.cardSelect,
+.installmentSelect {
+  min-width: 0;
+}
+
+/* ─── Cartão e parcelamento ──────────────────────────────── */
+.cardRow {
+  display: grid;
+  grid-template-columns: 1fr 200px;
+  gap: var(--space-2);
+}
+
+.cardRow:has(.cardSelect:only-child) {
+  grid-template-columns: 1fr;
+}
+
+.preview {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+}
+
+.preview strong {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+@media (max-width: 900px) {
+  .cardRow {
+    grid-template-columns: 1fr;
+  }
+}

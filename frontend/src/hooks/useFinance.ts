@@ -2,6 +2,7 @@ import api from '@/services/api'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type {
   Transaction, CreateTransactionInput, Budget, FinanceSummary,
+  CreditCard, CreateCreditCardInput,
 } from '@/types/finance'
 
 // ─── Query Keys ──────────────────────────────────────────────────────────────
@@ -11,6 +12,7 @@ export const financeKeys = {
     [...financeKeys.all, 'transactions', from, to, category ?? ''] as const,
   summary: (month: string) => [...financeKeys.all, 'summary', month] as const,
   budgets: (month: string) => [...financeKeys.all, 'budgets', month] as const,
+  cards: () => [...financeKeys.all, 'cards'] as const,
 }
 
 // ─── API ─────────────────────────────────────────────────────────────────────
@@ -27,6 +29,24 @@ const financeApi = {
 
   deleteTransaction: async (id: string): Promise<void> => {
     await api.delete(`/finance/transactions/${id}`)
+  },
+
+  deleteInstallmentGroup: async (groupId: string): Promise<void> => {
+    await api.delete(`/finance/installments/${groupId}`)
+  },
+
+  listCards: async (): Promise<CreditCard[]> => {
+    const { data } = await api.get('/finance/cards')
+    return data.cards
+  },
+
+  createCard: async (input: CreateCreditCardInput): Promise<CreditCard> => {
+    const { data } = await api.post('/finance/cards', input)
+    return data
+  },
+
+  deleteCard: async (id: string): Promise<void> => {
+    await api.delete(`/finance/cards/${id}`)
   },
 
   getSummary: async (month: string): Promise<FinanceSummary> => {
@@ -95,6 +115,37 @@ export function useUpsertBudget() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: financeApi.upsertBudget,
+    onSuccess: () => qc.invalidateQueries({ queryKey: financeKeys.all }),
+  })
+}
+
+export function useCards() {
+  return useQuery({
+    queryKey: financeKeys.cards(),
+    queryFn: financeApi.listCards,
+  })
+}
+
+export function useCreateCard() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: financeApi.createCard,
+    onSuccess: () => qc.invalidateQueries({ queryKey: financeKeys.cards() }),
+  })
+}
+
+export function useDeleteCard() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: financeApi.deleteCard,
+    onSuccess: () => qc.invalidateQueries({ queryKey: financeKeys.all }),
+  })
+}
+
+export function useDeleteInstallmentGroup() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: financeApi.deleteInstallmentGroup,
     onSuccess: () => qc.invalidateQueries({ queryKey: financeKeys.all }),
   })
 }

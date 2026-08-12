@@ -37,6 +37,13 @@ type TransactionDTO struct {
 	SourceType  string    `json:"source_type"`
 	SourceID    *string   `json:"source_id,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
+	// Cartão de crédito e parcelamento (nulos em pix/débito/dinheiro)
+	CreditCardID       *string `json:"credit_card_id,omitempty"`
+	CreditCardName     *string `json:"credit_card_name,omitempty"`
+	PurchasedOn        *string `json:"purchased_on,omitempty"`
+	InstallmentGroupID *string `json:"installment_group_id,omitempty"`
+	InstallmentNumber  *int    `json:"installment_number,omitempty"`
+	InstallmentTotal   *int    `json:"installment_total,omitempty"`
 }
 
 type CreateTransactionInput struct {
@@ -48,6 +55,26 @@ type CreateTransactionInput struct {
 	OccurredOn  string  `json:"occurred_on"`
 	SourceType  string  `json:"source_type"`
 	SourceID    *string `json:"source_id"`
+	// Compra no cartão: amount_cents é o valor TOTAL da compra e
+	// occurred_on é ignorado — as datas de cobrança saem da regra do cartão.
+	CreditCardID *string `json:"credit_card_id"`
+	Installments int     `json:"installments"`
+}
+
+type CreditCardDTO struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	ClosingDay int    `json:"closing_day"`
+	DueDay     int    `json:"due_day"`
+	Color      *string `json:"color"`
+	IsActive   bool   `json:"is_active"`
+}
+
+type CreateCreditCardInput struct {
+	Name       string  `json:"name"`
+	ClosingDay int     `json:"closing_day"`
+	DueDay     int     `json:"due_day"`
+	Color      *string `json:"color"`
 }
 
 type BudgetDTO struct {
@@ -72,26 +99,40 @@ type FinanceSummaryDTO struct {
 
 // ─── Transactions ─────────────────────────────────────────────────────────────
 
-const transactionColumns = `id::text, amount_cents, kind, category, description, method,
-	occurred_on::text, source_type, source_id::text, created_at`
+// Colunas com prefixo t. para permitir o LEFT JOIN com credit_cards.
+const transactionColumns = `t.id::text, t.amount_cents, t.kind, t.category, t.description, t.method,
+	t.occurred_on::text, t.source_type, t.source_id::text, t.created_at,
+	t.credit_card_id::text, c.name, t.purchased_on::text,
+	t.installment_group_id::text, t.installment_number, t.installment_total`
+
+const transactionFrom = `FROM transactions t LEFT JOIN credit_cards c ON c.id = t.credit_card_id`
+
+// returningJoined wraps a writing statement in a CTE so the row it returns can
+// still be joined with credit_cards — RETURNING alone cannot join.
+func returningJoined(write string) string {
+	return `WITH written AS (` + write + ` RETURNING *)
+		SELECT ` + transactionColumns + ` FROM written t
+		LEFT JOIN credit_cards c ON c.id = t.credit_card_id`
+}
 
 func scanTransaction(scan func(dest ...any) error) (TransactionDTO, error) {
 	var t TransactionDTO
 	err := scan(&t.ID, &t.AmountCents, &t.Kind, &t.Category, &t.Description, &t.Method,
-		&t.OccurredOn, &t.SourceType, &t.SourceID, &t.CreatedAt)
+		&t.OccurredOn, &t.SourceType, &t.SourceID, &t.CreatedAt,
+		&t.CreditCardID, &t.CreditCardName, &t.PurchasedOn,
+		&t.InstallmentGroupID, &t.InstallmentNumber, &t.InstallmentTotal)
 	return t, err
 }
 
 func (s *FinanceService) ListTransactions(ctx context.Context, userID, from, to, category string) ([]TransactionDTO, error) {
-	query := `SELECT ` + transactionColumns + `
-		FROM transactions
-		WHERE user_id = $1 AND occurred_on BETWEEN $2::date AND $3::date`
+	query := `SELECT ` + transactionColumns + ` ` + transactionFrom + `
+		WHERE t.user_id = $1 AND t.occurred_on BETWEEN $2::date AND $3::date`
 	args := []any{userID, from, to}
 	if category != "" {
 		args = append(args, category)
-		query += fmt.Sprintf(" AND category = $%d", len(args))
+		query += fmt.Sprintf(" AND t.category = $%d", len(args))
 	}
-	query += " ORDER BY occurred_on DESC, created_at DESC"
+	query += " ORDER BY t.occurred_on DESC, t.installment_number ASC NULLS FIRST, t.created_at DESC"
 
 	rows, err := s.db.Query(ctx, query, args...)
 	if err != nil {
@@ -130,18 +171,17 @@ func (s *FinanceService) CreateTransaction(ctx context.Context, userID string, i
 		input.OccurredOn = time.Now().Format("2006-01-02")
 	}
 
-	query := `INSERT INTO transactions
+	write := `INSERT INTO transactions
 		(user_id, amount_cents, kind, category, description, method, occurred_on, source_type, source_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8, $9)`
 	if input.SourceID != nil {
-		query += `
+		write += `
 		ON CONFLICT (source_type, source_id) WHERE source_id IS NOT NULL
 		DO UPDATE SET amount_cents = EXCLUDED.amount_cents, kind = EXCLUDED.kind,
 		  category = EXCLUDED.category, description = EXCLUDED.description,
 		  method = EXCLUDED.method, occurred_on = EXCLUDED.occurred_on, updated_at = NOW()`
 	}
-	query += `
-		RETURNING ` + transactionColumns
+	query := returningJoined(write)
 
 	row := s.db.QueryRow(ctx, query,
 		userID, input.AmountCents, input.Kind, input.Category, input.Description,
@@ -152,6 +192,197 @@ func (s *FinanceService) CreateTransaction(ctx context.Context, userID string, i
 		return nil, fmt.Errorf("creating transaction: %w", err)
 	}
 	return &t, nil
+}
+
+// CreateCardPurchase records a credit card purchase, expanding it into one
+// transaction per installment.
+//
+// Each installment is a real cash event on its own due date, so the monthly
+// summary and budgets keep working untouched and future commitments become
+// visible. amount_cents is the purchase total; the split never loses a cent.
+func (s *FinanceService) CreateCardPurchase(ctx context.Context, userID string, input CreateTransactionInput) ([]TransactionDTO, error) {
+	if input.CreditCardID == nil {
+		return nil, fmt.Errorf("credit_card_id is required")
+	}
+	if input.Installments < 1 {
+		input.Installments = 1
+	}
+	if input.Category == "" {
+		input.Category = "other"
+	}
+
+	card, err := s.GetCard(ctx, *input.CreditCardID, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	purchasedOn := time.Now()
+	if input.OccurredOn != "" {
+		purchasedOn, err = time.Parse("2006-01-02", input.OccurredOn)
+		if err != nil {
+			return nil, fmt.Errorf("invalid purchase date: %w", err)
+		}
+	}
+
+	amounts := splitInstallments(input.AmountCents, input.Installments)
+	dates := installmentDates(purchasedOn, card.ClosingDay, card.DueDay, input.Installments)
+
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("beginning tx: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var groupID *string
+	if input.Installments > 1 {
+		var id string
+		if err := tx.QueryRow(ctx, "SELECT gen_random_uuid()::text").Scan(&id); err != nil {
+			return nil, fmt.Errorf("generating installment group: %w", err)
+		}
+		groupID = &id
+	}
+
+	created := make([]TransactionDTO, 0, input.Installments)
+	for i := 0; i < input.Installments; i++ {
+		var number, total *int
+		if input.Installments > 1 {
+			n, t := i+1, input.Installments
+			number, total = &n, &t
+		}
+
+		row := tx.QueryRow(ctx, returningJoined(`INSERT INTO transactions
+			(user_id, amount_cents, kind, category, description, method, occurred_on,
+			 source_type, credit_card_id, purchased_on, installment_group_id,
+			 installment_number, installment_total)
+			VALUES ($1, $2, 'expense', $3, $4, 'credit', $5::date, $6, $7, $8::date, $9, $10, $11)`),
+			userID, amounts[i], input.Category, input.Description,
+			dates[i].Format("2006-01-02"), input.SourceType,
+			*input.CreditCardID, purchasedOn.Format("2006-01-02"),
+			groupID, number, total,
+		)
+
+		t, err := scanTransaction(row.Scan)
+		if err != nil {
+			return nil, fmt.Errorf("creating installment %d: %w", i+1, err)
+		}
+		created = append(created, t)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("committing purchase: %w", err)
+	}
+	return created, nil
+}
+
+// DeleteInstallmentGroup removes every installment of a purchase at once.
+func (s *FinanceService) DeleteInstallmentGroup(ctx context.Context, groupID, userID string) error {
+	tag, err := s.db.Exec(ctx,
+		"DELETE FROM transactions WHERE installment_group_id = $1 AND user_id = $2",
+		groupID, userID,
+	)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+// ─── Credit cards ─────────────────────────────────────────────────────────────
+
+const creditCardColumns = `id::text, name, closing_day, due_day, color, is_active`
+
+func scanCreditCard(scan func(dest ...any) error) (CreditCardDTO, error) {
+	var c CreditCardDTO
+	err := scan(&c.ID, &c.Name, &c.ClosingDay, &c.DueDay, &c.Color, &c.IsActive)
+	return c, err
+}
+
+func (s *FinanceService) ListCards(ctx context.Context, userID string) ([]CreditCardDTO, error) {
+	rows, err := s.db.Query(ctx,
+		`SELECT `+creditCardColumns+`
+		 FROM credit_cards WHERE user_id = $1 AND is_active = true ORDER BY name ASC`,
+		userID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("listing cards: %w", err)
+	}
+	defer rows.Close()
+
+	cards := []CreditCardDTO{}
+	for rows.Next() {
+		c, err := scanCreditCard(rows.Scan)
+		if err != nil {
+			return nil, err
+		}
+		cards = append(cards, c)
+	}
+	return cards, rows.Err()
+}
+
+func (s *FinanceService) GetCard(ctx context.Context, cardID, userID string) (*CreditCardDTO, error) {
+	row := s.db.QueryRow(ctx,
+		`SELECT `+creditCardColumns+`
+		 FROM credit_cards WHERE id = $1 AND user_id = $2 AND is_active = true`,
+		cardID, userID,
+	)
+	c, err := scanCreditCard(row.Scan)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("getting card: %w", err)
+	}
+	return &c, nil
+}
+
+func (s *FinanceService) CreateCard(ctx context.Context, userID string, input CreateCreditCardInput) (*CreditCardDTO, error) {
+	row := s.db.QueryRow(ctx,
+		`INSERT INTO credit_cards (user_id, name, closing_day, due_day, color)
+		 VALUES ($1, $2, $3, $4, $5)
+		 RETURNING `+creditCardColumns,
+		userID, input.Name, input.ClosingDay, input.DueDay, input.Color,
+	)
+	c, err := scanCreditCard(row.Scan)
+	if err != nil {
+		return nil, fmt.Errorf("creating card: %w", err)
+	}
+	return &c, nil
+}
+
+func (s *FinanceService) UpdateCard(ctx context.Context, cardID, userID string, input CreateCreditCardInput) (*CreditCardDTO, error) {
+	row := s.db.QueryRow(ctx,
+		`UPDATE credit_cards
+		 SET name = $3, closing_day = $4, due_day = $5, color = $6
+		 WHERE id = $1 AND user_id = $2 AND is_active = true
+		 RETURNING `+creditCardColumns,
+		cardID, userID, input.Name, input.ClosingDay, input.DueDay, input.Color,
+	)
+	c, err := scanCreditCard(row.Scan)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, fmt.Errorf("updating card: %w", err)
+	}
+	return &c, nil
+}
+
+// DeleteCard soft-deletes the card. Transactions keep their credit_card_id, so
+// past purchases stay attributed to the card that made them.
+func (s *FinanceService) DeleteCard(ctx context.Context, cardID, userID string) error {
+	tag, err := s.db.Exec(ctx,
+		"UPDATE credit_cards SET is_active = false WHERE id = $1 AND user_id = $2 AND is_active = true",
+		cardID, userID,
+	)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrNotFound
+	}
+	return nil
 }
 
 // UpdateTransaction applies a presence-based partial update (same contract
@@ -196,9 +427,8 @@ func (s *FinanceService) UpdateTransaction(ctx context.Context, txID, userID str
 	}
 
 	row := s.db.QueryRow(ctx,
-		`UPDATE transactions SET `+strings.Join(setClauses, ", ")+`
-		 WHERE id = $1 AND user_id = $2
-		 RETURNING `+transactionColumns,
+		returningJoined(`UPDATE transactions SET `+strings.Join(setClauses, ", ")+`
+		 WHERE id = $1 AND user_id = $2`),
 		args...,
 	)
 	t, err := scanTransaction(row.Scan)

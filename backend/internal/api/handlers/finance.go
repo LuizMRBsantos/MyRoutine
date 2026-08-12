@@ -54,6 +54,8 @@ func (h *FinanceHandler) ListTransactions(w http.ResponseWriter, r *http.Request
 }
 
 // POST /finance/transactions
+// With credit_card_id, amount_cents is the purchase total and the response is
+// the list of generated installments.
 func (h *FinanceHandler) CreateTransaction(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 
@@ -75,6 +77,27 @@ func (h *FinanceHandler) CreateTransaction(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	if input.CreditCardID != nil {
+		if input.Installments < 0 || input.Installments > 99 {
+			respondError(w, http.StatusBadRequest, "installments must be between 1 and 99")
+			return
+		}
+
+		installments, err := h.financeSvc.CreateCardPurchase(r.Context(), userID, input)
+		if err != nil {
+			if err == service.ErrNotFound {
+				respondError(w, http.StatusNotFound, "credit card not found")
+				return
+			}
+			h.logger.Error("create card purchase", zap.Error(err))
+			respondError(w, http.StatusInternalServerError, "failed to create purchase")
+			return
+		}
+
+		respondJSON(w, http.StatusCreated, map[string]any{"installments": installments})
+		return
+	}
+
 	tx, err := h.financeSvc.CreateTransaction(r.Context(), userID, input)
 	if err != nil {
 		h.logger.Error("create transaction", zap.Error(err))
@@ -83,6 +106,125 @@ func (h *FinanceHandler) CreateTransaction(w http.ResponseWriter, r *http.Reques
 	}
 
 	respondJSON(w, http.StatusCreated, tx)
+}
+
+// DELETE /finance/installments/{groupID}
+func (h *FinanceHandler) DeleteInstallmentGroup(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+	groupID := chi.URLParam(r, "groupID")
+
+	if err := h.financeSvc.DeleteInstallmentGroup(r.Context(), groupID, userID); err != nil {
+		if err == service.ErrNotFound {
+			respondError(w, http.StatusNotFound, "installment group not found")
+			return
+		}
+		h.logger.Error("delete installment group", zap.Error(err))
+		respondError(w, http.StatusInternalServerError, "failed to delete installments")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ─── Credit cards ─────────────────────────────────────────────────────────────
+
+// validates the day-of-month fields shared by create and update.
+func validCardInput(input service.CreateCreditCardInput) string {
+	if input.Name == "" {
+		return "name is required"
+	}
+	if input.ClosingDay < 1 || input.ClosingDay > 31 {
+		return "closing_day must be between 1 and 31"
+	}
+	if input.DueDay < 1 || input.DueDay > 31 {
+		return "due_day must be between 1 and 31"
+	}
+	return ""
+}
+
+// GET /finance/cards
+func (h *FinanceHandler) ListCards(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+
+	cards, err := h.financeSvc.ListCards(r.Context(), userID)
+	if err != nil {
+		h.logger.Error("list cards", zap.Error(err))
+		respondError(w, http.StatusInternalServerError, "failed to list cards")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, map[string]any{"cards": cards})
+}
+
+// POST /finance/cards
+func (h *FinanceHandler) CreateCard(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+
+	var input service.CreateCreditCardInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if msg := validCardInput(input); msg != "" {
+		respondError(w, http.StatusBadRequest, msg)
+		return
+	}
+
+	card, err := h.financeSvc.CreateCard(r.Context(), userID, input)
+	if err != nil {
+		h.logger.Error("create card", zap.Error(err))
+		respondError(w, http.StatusInternalServerError, "failed to create card")
+		return
+	}
+
+	respondJSON(w, http.StatusCreated, card)
+}
+
+// PUT /finance/cards/{id}
+func (h *FinanceHandler) UpdateCard(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+	cardID := chi.URLParam(r, "id")
+
+	var input service.CreateCreditCardInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if msg := validCardInput(input); msg != "" {
+		respondError(w, http.StatusBadRequest, msg)
+		return
+	}
+
+	card, err := h.financeSvc.UpdateCard(r.Context(), cardID, userID, input)
+	if err != nil {
+		if err == service.ErrNotFound {
+			respondError(w, http.StatusNotFound, "card not found")
+			return
+		}
+		h.logger.Error("update card", zap.Error(err))
+		respondError(w, http.StatusInternalServerError, "failed to update card")
+		return
+	}
+
+	respondJSON(w, http.StatusOK, card)
+}
+
+// DELETE /finance/cards/{id}
+func (h *FinanceHandler) DeleteCard(w http.ResponseWriter, r *http.Request) {
+	userID := middleware.GetUserID(r.Context())
+	cardID := chi.URLParam(r, "id")
+
+	if err := h.financeSvc.DeleteCard(r.Context(), cardID, userID); err != nil {
+		if err == service.ErrNotFound {
+			respondError(w, http.StatusNotFound, "card not found")
+			return
+		}
+		h.logger.Error("delete card", zap.Error(err))
+		respondError(w, http.StatusInternalServerError, "failed to delete card")
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // PATCH /finance/transactions/{id}

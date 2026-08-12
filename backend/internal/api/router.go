@@ -125,6 +125,13 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 					r.Patch("/{id}", financeHandler.UpdateTransaction)
 					r.Delete("/{id}", financeHandler.DeleteTransaction)
 				})
+				r.Delete("/installments/{groupID}", financeHandler.DeleteInstallmentGroup)
+				r.Route("/cards", func(r chi.Router) {
+					r.Get("/", financeHandler.ListCards)
+					r.Post("/", financeHandler.CreateCard)
+					r.Put("/{id}", financeHandler.UpdateCard)
+					r.Delete("/{id}", financeHandler.DeleteCard)
+				})
 				r.Get("/summary", financeHandler.Summary) // ?month=YYYY-MM-DD
 				r.Route("/budgets", func(r chi.Router) {
 					r.Get("/", financeHandler.ListBudgets) // ?month=YYYY-MM-DD

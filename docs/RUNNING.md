@@ -78,7 +78,7 @@ the server with the "Sincronizar" button (one-way push, idempotent by
   naming scheme `NNNNNN_description.up.sql`.
 - They are embedded into the binary and applied automatically at startup
   (`internal/db/migrate.go`). No manual `psql` step is needed.
-- Policy (see `.agents/skills/go-migration-safety`): incremental and
+- Policy (see `.claude/skills/go-migration-safety`): incremental and
   non-destructive; new columns NULLable or with DEFAULT; never DROP in the
   same migration that adds a replacement.
 

@@ -50,6 +50,9 @@ semgrep-results.json
 zap-results.json
 
 # ========================
-# Claude Code local config
+# Claude Code
 # ========================
-.claude/
+# As skills do projeto SÃO versionadas (.claude/skills/) — elas carregam as
+# regras de produto. Só a configuração local da máquina fica de fora.
+.claude/settings.local.json
+.claude/settings.json

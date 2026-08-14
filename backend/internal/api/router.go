@@ -51,6 +51,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 	taskHandler := handlers.NewTaskHandler(cfg, db, logger)
 	userHandler := handlers.NewUserHandler(cfg, db, logger)
 	financeHandler := handlers.NewFinanceHandler(cfg, db, logger)
+	importHandler := handlers.NewImportHandler(cfg, db, logger)
 	healthModuleHandler := handlers.NewHealthModuleHandler(cfg, db, logger)
 	studyHandler := handlers.NewStudyHandler(cfg, db, logger)
 
@@ -131,6 +132,20 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 					r.Post("/", financeHandler.CreateCard)
 					r.Put("/{id}", financeHandler.UpdateCard)
 					r.Delete("/{id}", financeHandler.DeleteCard)
+				})
+				// Importação de extrato e conciliação
+				r.Route("/imports", func(r chi.Router) {
+					r.Post("/preview", importHandler.Preview)
+					r.Post("/", importHandler.Create)
+					r.Get("/", importHandler.ListBatches)
+					r.Get("/pending", importHandler.ListPending)
+					r.Get("/{id}", importHandler.GetBatch)
+					r.Post("/entries/{id}/approve", importHandler.ApproveEntry)
+					r.Post("/entries/{id}/decide", importHandler.DecideEntry)
+				})
+				r.Route("/rules", func(r chi.Router) {
+					r.Get("/", importHandler.ListRules)
+					r.Delete("/{id}", importHandler.DeleteRule)
 				})
 				r.Get("/summary", financeHandler.Summary) // ?month=YYYY-MM-DD
 				r.Route("/budgets", func(r chi.Router) {

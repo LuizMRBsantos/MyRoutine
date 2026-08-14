@@ -1,0 +1,275 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 960px;
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.pageTitle {
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+}
+
+.pageSubtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  margin-top: var(--space-1);
+}
+
+.section {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sectionTitle {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.hint {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-tertiary);
+  line-height: 1.5;
+}
+
+.fileInput {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* ─── Mapeamento ─────────────────────────────────────────── */
+.mappingBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+}
+
+.mappingTitle {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.mappingGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+
+.mappingField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.mappingLabel {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.checkboxRow input[type="checkbox"] {
+  accent-color: var(--color-accent);
+  width: 15px;
+  height: 15px;
+}
+
+.sample {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elevated);
+}
+
+.sampleTitle {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  margin-bottom: var(--space-1);
+}
+
+.sampleRow {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+/* ─── Caixa de entrada ───────────────────────────────────── */
+.inboxHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.counter {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.entryList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  overflow: hidden;
+}
+
+.entryMain {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.entryInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.entryDescription {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.entryMeta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
+.entryAmount {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.income {
+  color: var(--color-success);
+}
+
+/* Aviso informativo, não alarme — cor de atenção, sem vermelho de erro */
+.matchWarning {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  background: var(--color-warning-light);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  line-height: 1.5;
+}
+
+.entryActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.categorySelect {
+  flex: 1;
+  min-width: 160px;
+}
+
+.ignoreBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast);
+}
+
+.ignoreBtn:hover {
+  color: var(--color-text-primary);
+}
+
+/* ─── Regras ─────────────────────────────────────────────── */
+.ruleList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.rule {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.rulePattern {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+  background: var(--color-bg-elevated);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.ruleArrow {
+  color: var(--color-text-tertiary);
+}
+
+.ruleCategory {
+  flex: 1;
+  color: var(--color-text-secondary);
+}
+
+.removeBtn {
+  background: none;
+  border: none;
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-md);
+  cursor: pointer;
+  padding: 0 var(--space-1);
+  transition: color var(--transition-fast);
+}
+
+.removeBtn:hover {
+  color: var(--color-text-primary);
+}
+
+@media (max-width: 800px) {
+  .mappingGrid {
+    grid-template-columns: 1fr;
+  }
+}

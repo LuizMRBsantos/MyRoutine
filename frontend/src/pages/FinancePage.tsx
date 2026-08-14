@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTransactions, useFinanceSummary } from '@/hooks/useFinance'
+import { usePendingEntries } from '@/hooks/useImports'
 import { QuickAddTransaction } from '@/components/finance/QuickAddTransaction'
 import { TransactionList } from '@/components/finance/TransactionList'
 import { CategoryBreakdown } from '@/components/finance/CategoryBreakdown'
@@ -29,6 +31,7 @@ export function FinancePage() {
 
   const { data: summary } = useFinanceSummary(month)
   const { data: transactions = [], isLoading, isError } = useTransactions(from, to)
+  const { data: pendingImports = [] } = usePendingEntries()
 
   const balance = (summary?.income_cents ?? 0) - (summary?.expense_cents ?? 0)
 
@@ -40,6 +43,15 @@ export function FinancePage() {
           <h1 className={styles.pageTitle}>Finanças</h1>
           <p className={styles.pageSubtitle}>Transações e orçamentos do mês</p>
         </div>
+        <div className={styles.headerActions}>
+          {/* Só anuncia quando há algo esperando: sem contador permanente. */}
+          <Link to="/finance/import" className="btn btn-ghost">
+            {pendingImports.length > 0
+              ? `Revisar extrato (${pendingImports.length})`
+              : 'Importar extrato'}
+          </Link>
+        </div>
+
         <div className={styles.monthNav}>
           <button
             className={styles.navBtn}

@@ -56,3 +56,6 @@ zap-results.json
 # regras de produto. Só a configuração local da máquina fica de fora.
 .claude/settings.local.json
 .claude/settings.json
+# Local temporary artifacts
+.superpowers/
+tmp/

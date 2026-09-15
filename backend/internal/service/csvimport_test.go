@@ -5,18 +5,18 @@ import "testing"
 // O ponto onde bug de dinheiro nasce: cada banco escreve valor de um jeito.
 func TestParseAmountCents(t *testing.T) {
 	cases := map[string]int64{
-		"45,90":       4590,  // formato brasileiro
-		"45.90":       4590,  // formato americano
-		"1.234,56":    123456, // ponto como milhar, vírgula decimal
-		"1,234.56":    123456, // vírgula como milhar, ponto decimal
-		"1.234":       123400, // três dígitos após o ponto → milhar, não decimal
-		"1234":        123400,
-		"R$ 45,90":    4590,
-		"-45,90":      -4590,
-		"(45,90)":     -4590, // negativo entre parênteses
-		"0,05":        5,
-		"45,9":        4590,  // uma casa decimal
-		"10.000,00":   1000000,
+		"45,90":     4590,   // formato brasileiro
+		"45.90":     4590,   // formato americano
+		"1.234,56":  123456, // ponto como milhar, vírgula decimal
+		"1,234.56":  123456, // vírgula como milhar, ponto decimal
+		"1.234":     123400, // três dígitos após o ponto → milhar, não decimal
+		"1234":      123400,
+		"R$ 45,90":  4590,
+		"-45,90":    -4590,
+		"(45,90)":   -4590, // negativo entre parênteses
+		"0,05":      5,
+		"45,9":      4590, // uma casa decimal
+		"10.000,00": 1000000,
 	}
 
 	for raw, want := range cases {

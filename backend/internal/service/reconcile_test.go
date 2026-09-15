@@ -4,11 +4,11 @@ import "testing"
 
 func TestNormalizeDescription(t *testing.T) {
 	cases := map[string]string{
-		"IFOOD  *RESTAURANTE-SP":  "IFOOD RESTAURANTE SP",
-		"ALIMENTAÇÃO":             "ALIMENTACAO",
-		"posto ipiranga  123":     "POSTO IPIRANGA 123",
-		"PAG*JoãoDaSilva":         "PAG JOAODASILVA",
-		"  espaços   demais  ":    "ESPACOS DEMAIS",
+		"IFOOD  *RESTAURANTE-SP": "IFOOD RESTAURANTE SP",
+		"ALIMENTAÇÃO":            "ALIMENTACAO",
+		"posto ipiranga  123":    "POSTO IPIRANGA 123",
+		"PAG*JoãoDaSilva":        "PAG JOAODASILVA",
+		"  espaços   demais  ":   "ESPACOS DEMAIS",
 	}
 
 	for raw, want := range cases {
@@ -69,11 +69,11 @@ func TestSuggestCategoryPrefersLongerPattern(t *testing.T) {
 // inteira — senão nunca casaria com a próxima compra no mesmo lugar.
 func TestLearnPatternKeepsMerchantDropsNoise(t *testing.T) {
 	cases := map[string]string{
-		"IFOOD *RESTAURANTE SP 1234": "IFOOD RESTAURANTE",
+		"IFOOD *RESTAURANTE SP 1234":   "IFOOD RESTAURANTE",
 		"POSTO IPIRANGA 4455 SAOPAULO": "POSTO IPIRANGA",
-		"UBER *TRIP":                 "UBER TRIP",
-		"NETFLIX":                    "NETFLIX",
-		"12345 SEM NOME":             "12345 SEM NOME",
+		"UBER *TRIP":                   "UBER TRIP",
+		"NETFLIX":                      "NETFLIX",
+		"12345 SEM NOME":               "12345 SEM NOME",
 	}
 
 	for raw, want := range cases {

@@ -62,12 +62,12 @@ type CreateTransactionInput struct {
 }
 
 type CreditCardDTO struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	ClosingDay int    `json:"closing_day"`
-	DueDay     int    `json:"due_day"`
+	ID         string  `json:"id"`
+	Name       string  `json:"name"`
+	ClosingDay int     `json:"closing_day"`
+	DueDay     int     `json:"due_day"`
 	Color      *string `json:"color"`
-	IsActive   bool   `json:"is_active"`
+	IsActive   bool    `json:"is_active"`
 }
 
 type CreateCreditCardInput struct {

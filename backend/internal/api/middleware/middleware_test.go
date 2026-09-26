@@ -19,6 +19,7 @@ func TestLoggerLogsTrustedXRealIPInsteadOfSpoofableForwardedHeaders(t *testing.T
 	req.RemoteAddr = "127.0.0.1:54321"
 	req.Header.Set("X-Real-IP", "203.0.113.10")
 	req.Header.Set("X-Forwarded-For", "198.51.100.20")
+	req.Header.Set("True-Client-IP", "198.51.100.30")
 
 	handler.ServeHTTP(httptest.NewRecorder(), req)
 

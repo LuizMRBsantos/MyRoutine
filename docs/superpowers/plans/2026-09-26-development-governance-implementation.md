@@ -1,5 +1,7 @@
 # Development Governance Implementation Plan
 
+> **Status: paused (2026-09-27).** Until the MVP is running in production, work is committed directly to `main`; `develop` was removed. Done so far: baseline CI made green (PRs #2–#4) and the `pull_request` trigger already lists `develop` (PR #5). Resume from Task 1 (create `develop`) once there is a real deployment to protect.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Turn the approved MyRoutine development policy into a reproducible branch, Pull Request, CI, release, and GitHub Ruleset workflow.

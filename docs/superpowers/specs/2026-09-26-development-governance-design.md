@@ -1,6 +1,6 @@
 # MyRoutine — Development Governance and Delivery Design
 
-**Status:** Approved design
+**Status:** Approved design — implementation paused until the MVP is in production; see the implementation plan
 
 **Date:** 2026-09-26
 

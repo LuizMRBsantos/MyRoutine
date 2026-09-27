@@ -211,6 +211,9 @@ jobs:
           format: "sarif"
           output: "trivy-${{ matrix.name }}.sarif"
           severity: "CRITICAL,HIGH"
+          # Sem isso, o formato SARIF ignora o filtro acima e qualquer achado
+          # (inclusive UNKNOWN sem correção) faz o exit-code disparar.
+          limit-severities-for-sarif: true
           exit-code: "1"  # Falha o CI se encontrar CRITICAL ou HIGH
 
       - name: Upload Trivy results to GitHub Security

@@ -75,6 +75,12 @@ jobs:
       - name: Run tests
         run: go test -v -race -coverprofile=coverage.out ./...
         working-directory: backend
+        env:
+          # Os pacotes de teste rodam em paralelo e compartilham a sessão do
+          # Ryuk; quando o handshake falha, ele derruba o Postgres de outro
+          # pacote no meio da suíte. O runner é descartável e os testes já
+          # encerram seus containers no cleanup.
+          TESTCONTAINERS_RYUK_DISABLED: "true"
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4

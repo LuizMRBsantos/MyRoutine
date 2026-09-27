@@ -1,14 +1,18 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
+	"github.com/myroutine/backend/internal/appctx"
 	"github.com/myroutine/backend/internal/config"
 )
 
@@ -114,6 +118,54 @@ func JWTAuth(cfg *config.Config) func(http.Handler) http.Handler {
 
 			ctx := r.Context()
 			ctx = setContextValue(ctx, UserIDKey, userID)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+// ─── Active User Middleware ───────────────────────────────────────────────────
+
+const fallbackTimezone = "America/Sao_Paulo"
+
+// userQuerier is the minimal slice of *pgxpool.Pool the middleware needs.
+// Keeping it as an interface lets the handler be unit-tested with a fake row
+// while RequireActiveUser still takes the concrete pool at the call site.
+type userQuerier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+// RequireActiveUser must run after JWTAuth on the protected group. It looks up
+// the authenticated user, rejects the request with 403 when the account is
+// missing or inactive, and otherwise injects the user's timezone into the
+// context (via appctx) for downstream "today" calculations.
+func RequireActiveUser(db *pgxpool.Pool) func(http.Handler) http.Handler {
+	return requireActiveUser(db)
+}
+
+func requireActiveUser(db userQuerier) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			userID := GetUserID(ctx)
+
+			var isActive bool
+			var timezone string
+			err := db.QueryRow(ctx,
+				`SELECT is_active, timezone FROM users WHERE id = $1`,
+				userID,
+			).Scan(&isActive, &timezone)
+
+			if err != nil || !isActive {
+				http.Error(w, `{"error":"account is not active"}`, http.StatusForbidden)
+				return
+			}
+
+			loc, err := time.LoadLocation(timezone)
+			if err != nil || timezone == "" {
+				loc, _ = time.LoadLocation(fallbackTimezone)
+			}
+
+			ctx = appctx.WithTimezone(ctx, loc)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

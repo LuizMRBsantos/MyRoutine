@@ -10,6 +10,11 @@ import (
 	"syscall"
 	"time"
 
+	// Embed the IANA timezone database into the binary. The production image is
+	// built FROM scratch and has no /usr/share/zoneinfo, so without this
+	// time.LoadLocation would fail for every per-user timezone.
+	_ "time/tzdata"
+
 	"github.com/myroutine/backend/internal/api"
 	"github.com/myroutine/backend/internal/config"
 	"github.com/myroutine/backend/internal/db"

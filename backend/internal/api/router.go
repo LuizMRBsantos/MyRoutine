@@ -77,6 +77,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 		// Protected routes — requer JWT válido
 		r.Group(func(r chi.Router) {
 			r.Use(custommiddleware.JWTAuth(cfg))
+			r.Use(custommiddleware.RequireActiveUser(db))
 
 			// Current user profile
 			r.Route("/me", func(r chi.Router) {

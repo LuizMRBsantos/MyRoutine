@@ -187,6 +187,12 @@ jobs:
     name: 🐳 Container Security (Trivy)
     runs-on: ubuntu-latest
     needs: [backend, frontend]
+    # O token padrão do repositório é somente leitura; o upload do SARIF
+    # para o GitHub Security precisa de escrita em security-events.
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
 
     strategy:
       fail-fast: false

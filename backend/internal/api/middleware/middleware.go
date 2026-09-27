@@ -21,6 +21,10 @@ func Logger(logger *zap.Logger) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+			ip := middleware.GetClientIP(r.Context())
+			if ip == "" {
+				ip = r.RemoteAddr
+			}
 
 			defer func() {
 				logger.Info("request",
@@ -29,7 +33,7 @@ func Logger(logger *zap.Logger) func(http.Handler) http.Handler {
 					zap.Int("status", ww.Status()),
 					zap.Duration("latency", time.Since(start)),
 					zap.String("request_id", middleware.GetReqID(r.Context())),
-					zap.String("ip", r.RemoteAddr),
+					zap.String("ip", ip),
 					zap.String("user_agent", r.UserAgent()),
 				)
 			}()

@@ -23,7 +23,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 
 	// ─── Global Middleware ──────────────────────────────────────
 	r.Use(middleware.RequestID)
-	r.Use(middleware.RealIP)
+	r.Use(middleware.ClientIPFromHeader("X-Real-IP"))
 	r.Use(custommiddleware.Logger(logger))
 	r.Use(custommiddleware.Metrics())
 	r.Use(middleware.Recoverer)

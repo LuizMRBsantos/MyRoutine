@@ -14,6 +14,9 @@ RUN npm run build
 # ─── Serve stage — static files behind nginx ─────────────────
 FROM nginx:alpine
 
+# The upstream image lags behind Alpine security fixes
+RUN apk upgrade --no-cache
+
 COPY --from=builder /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 

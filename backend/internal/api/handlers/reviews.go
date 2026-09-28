@@ -3,13 +3,13 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
 	"github.com/myroutine/backend/internal/api/middleware"
+	"github.com/myroutine/backend/internal/appctx"
 	"github.com/myroutine/backend/internal/config"
 	"github.com/myroutine/backend/internal/service"
 )
@@ -69,7 +69,7 @@ func (h *ReviewHandler) ReviewDay(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.ReviewDate == "" {
-		req.ReviewDate = time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+		req.ReviewDate = appctx.Today(r.Context()).AddDate(0, 0, -1).Format("2006-01-02")
 	}
 
 	review, err := h.reviewSvc.ReviewDay(r.Context(), habitID, userID, req.ReviewDate, req.Status)

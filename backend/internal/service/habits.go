@@ -11,7 +11,20 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
+
+	"github.com/myroutine/backend/internal/appctx"
 )
+
+// dateLayout is the calendar-day format used for logged_date keys and for
+// passing a day to SQL as $n::date.
+const dateLayout = "2006-01-02"
+
+// calendarDay returns t's calendar date (in t's own location) as UTC
+// midnight, so it compares cleanly with dates parsed from "YYYY-MM-DD"
+// strings — the streak and completion walks rely on that.
+func calendarDay(t time.Time) time.Time {
+	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
+}
 
 // HabitService handles habit business logic.
 type HabitService struct {
@@ -203,11 +216,12 @@ func scanHabitLog(scan func(dest ...any) error) (HabitLogDTO, error) {
 
 // logDatesByHabit returns, per habit, the set of logged dates within the last
 // 400 days — one query for streaks, completion rates and completed-today.
-func (s *HabitService) logDatesByHabit(ctx context.Context, userID string) (map[string]map[string]bool, error) {
+// The window is anchored on today, the user's local calendar day.
+func (s *HabitService) logDatesByHabit(ctx context.Context, userID string, today time.Time) (map[string]map[string]bool, error) {
 	rows, err := s.db.Query(ctx,
 		`SELECT habit_id::text, logged_date::text FROM habit_logs
-		 WHERE user_id = $1 AND logged_date >= CURRENT_DATE - INTERVAL '400 days'`,
-		userID,
+		 WHERE user_id = $1 AND logged_date >= $2::date - INTERVAL '400 days'`,
+		userID, today.Format(dateLayout),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("loading habit logs: %w", err)
@@ -229,6 +243,12 @@ func (s *HabitService) logDatesByHabit(ctx context.Context, userID string) (map[
 }
 
 func (s *HabitService) ListByUser(ctx context.Context, userID string) ([]HabitDTO, error) {
+	return s.listByUser(ctx, userID, appctx.Today(ctx))
+}
+
+// listByUser computes completed_today and streaks relative to today, the
+// user's local calendar day.
+func (s *HabitService) listByUser(ctx context.Context, userID string, today time.Time) ([]HabitDTO, error) {
 	rows, err := s.db.Query(ctx,
 		`SELECT `+habitSelectColumns+`
 		 FROM habits WHERE user_id = $1 AND is_active = true ORDER BY sort_order ASC, created_at ASC`,
@@ -251,13 +271,13 @@ func (s *HabitService) ListByUser(ctx context.Context, userID string) ([]HabitDT
 		return nil, err
 	}
 
-	logs, err := s.logDatesByHabit(ctx, userID)
+	logs, err := s.logDatesByHabit(ctx, userID, today)
 	if err != nil {
 		return nil, err
 	}
 
-	today := time.Now()
-	todayKey := today.Format("2006-01-02")
+	today = calendarDay(today)
+	todayKey := today.Format(dateLayout)
 	for i := range habits {
 		habitLogs := logs[habits[i].ID]
 		habits[i].CompletedToday = habitLogs[todayKey]
@@ -451,15 +471,24 @@ func (s *HabitService) Delete(ctx context.Context, habitID, userID string) error
 
 // CheckIn performs a check-in with validation based on the habit's check_type.
 func (s *HabitService) CheckIn(ctx context.Context, habitID, userID string, input CheckInInput) (*HabitLogDTO, error) {
+	return s.checkIn(ctx, habitID, userID, input, time.Now())
+}
+
+// checkIn takes the current instant explicitly so tests can pin the clock.
+// Both the default logged_date and the deadline comparison use now as seen
+// in the user's timezone, never the server's.
+func (s *HabitService) checkIn(ctx context.Context, habitID, userID string, input CheckInInput, now time.Time) (*HabitLogDTO, error) {
 	// Get the habit to validate check-in rules
 	habit, err := s.GetByID(ctx, habitID, userID)
 	if err != nil {
 		return nil, ErrNotFound
 	}
 
+	now = now.In(appctx.UserTimezone(ctx))
+
 	date := input.Date
 	if date == "" {
-		date = time.Now().Format("2006-01-02")
+		date = now.Format(dateLayout)
 	}
 	if input.SourceType == "" {
 		input.SourceType = "manual"
@@ -488,7 +517,8 @@ func (s *HabitService) CheckIn(ctx context.Context, habitID, userID string, inpu
 
 	case "deadline":
 		if habit.DeadlineTime != nil {
-			now := time.Now()
+			// The deadline is a wall-clock time in the user's timezone
+			// (now.Location() is the user's zone here).
 			deadlineStr := fmt.Sprintf("%sT%s:00", date, *habit.DeadlineTime)
 			deadline, parseErr := time.ParseInLocation("2006-01-02T15:04:00", deadlineStr, now.Location())
 			if parseErr == nil && now.After(deadline) {
@@ -571,6 +601,12 @@ func (s *HabitService) GetLogs(ctx context.Context, habitID, userID, from, to st
 }
 
 func (s *HabitService) GetStats(ctx context.Context, userID string) (*HabitStatsDTO, error) {
+	return s.getStats(ctx, userID, appctx.Today(ctx))
+}
+
+// getStats computes today/7-day figures relative to today, the user's local
+// calendar day.
+func (s *HabitService) getStats(ctx context.Context, userID string, today time.Time) (*HabitStatsDTO, error) {
 	stats := &HabitStatsDTO{HabitStats: []HabitStat{}}
 
 	if err := s.db.QueryRow(ctx,
@@ -579,17 +615,17 @@ func (s *HabitService) GetStats(ctx context.Context, userID string) (*HabitStats
 		return nil, fmt.Errorf("counting check-ins: %w", err)
 	}
 
-	habits, err := s.ListByUser(ctx, userID)
+	habits, err := s.listByUser(ctx, userID, today)
 	if err != nil {
 		return nil, err
 	}
 
-	logs, err := s.logDatesByHabit(ctx, userID)
+	logs, err := s.logDatesByHabit(ctx, userID, today)
 	if err != nil {
 		return nil, err
 	}
 
-	today := time.Now()
+	today = calendarDay(today)
 	weekStart := today.AddDate(0, 0, -6)
 	stats.TotalHabits = len(habits)
 
@@ -640,12 +676,17 @@ func (s *HabitService) GetStats(ctx context.Context, userID string) (*HabitStats
 }
 
 func (s *HabitService) GetHeatmap(ctx context.Context, userID string) ([]HeatmapEntry, error) {
+	return s.getHeatmap(ctx, userID, appctx.Today(ctx))
+}
+
+// getHeatmap covers the 365 days up to today, the user's local calendar day.
+func (s *HabitService) getHeatmap(ctx context.Context, userID string, today time.Time) ([]HeatmapEntry, error) {
 	rows, err := s.db.Query(ctx,
 		`SELECT logged_date::text, COUNT(*) as habits_completed
 		 FROM habit_logs WHERE user_id = $1
-		   AND logged_date >= CURRENT_DATE - INTERVAL '365 days'
+		   AND logged_date >= $2::date - INTERVAL '365 days'
 		 GROUP BY logged_date ORDER BY logged_date ASC`,
-		userID,
+		userID, today.Format(dateLayout),
 	)
 	if err != nil {
 		return nil, err

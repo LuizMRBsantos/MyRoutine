@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
 	"github.com/myroutine/backend/internal/api/middleware"
+	"github.com/myroutine/backend/internal/appctx"
 	"github.com/myroutine/backend/internal/config"
 	"github.com/myroutine/backend/internal/service"
 )
@@ -36,11 +36,12 @@ func (h *HealthModuleHandler) ListActivities(w http.ResponseWriter, r *http.Requ
 
 	from := r.URL.Query().Get("from")
 	to := r.URL.Query().Get("to")
+	today := appctx.Today(r.Context())
 	if to == "" {
-		to = time.Now().Format("2006-01-02")
+		to = today.Format("2006-01-02")
 	}
 	if from == "" {
-		from = time.Now().AddDate(0, -1, 0).Format("2006-01-02")
+		from = today.AddDate(0, -1, 0).Format("2006-01-02")
 	}
 
 	activities, err := h.healthSvc.ListActivities(r.Context(), userID, from, to)

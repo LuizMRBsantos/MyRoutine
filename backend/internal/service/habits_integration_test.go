@@ -3,6 +3,9 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
+
+	"github.com/myroutine/backend/internal/appctx"
 )
 
 func newHabitService(t *testing.T) *HabitService {
@@ -213,11 +216,11 @@ func TestHabitCheckInIsIdempotentPerDay(t *testing.T) {
 		t.Errorf("notes = %q, want the updated value", second.Notes)
 	}
 
-	if err := svc.UndoCheckIn(ctx, created.ID, userID, today()); err != nil {
+	if err := svc.UndoCheckIn(ctx, created.ID, userID, userToday(ctx)); err != nil {
 		t.Fatalf("undo: %v", err)
 	}
 	// Undoing again has nothing to delete → 404, not a silent success.
-	if err := svc.UndoCheckIn(ctx, created.ID, userID, today()); err != ErrNotFound {
+	if err := svc.UndoCheckIn(ctx, created.ID, userID, userToday(ctx)); err != ErrNotFound {
 		t.Errorf("second undo err = %v, want ErrNotFound", err)
 	}
 }
@@ -293,5 +296,160 @@ func TestHabitMetricCheckInWithoutValues(t *testing.T) {
 
 	if _, err := svc.CheckIn(ctx, created.ID, userID, CheckInInput{}); err != nil {
 		t.Errorf("metric habit must accept a check-in with no metrics, got %v", err)
+	}
+}
+
+// ─── User timezone (T0.2) ────────────────────────────────────────────────────
+
+// userToday is today's calendar date in the context's user timezone — what
+// the services default to when no date is given.
+func userToday(ctx context.Context) string {
+	return appctx.Today(ctx).Format("2006-01-02")
+}
+
+// saoPauloCtx returns a context carrying the America/Sao_Paulo timezone (UTC-3,
+// no DST since 2019), as RequireActiveUser would inject it.
+func saoPauloCtx(t *testing.T) (context.Context, *time.Location) {
+	t.Helper()
+	loc, err := time.LoadLocation("America/Sao_Paulo")
+	if err != nil {
+		t.Fatalf("loading timezone: %v", err)
+	}
+	return appctx.WithTimezone(context.Background(), loc), loc
+}
+
+func utcInstant(t *testing.T, s string) time.Time {
+	t.Helper()
+	ts, err := time.Parse(time.RFC3339, s)
+	if err != nil {
+		t.Fatalf("parsing %q: %v", s, err)
+	}
+	return ts
+}
+
+func localMidnight(t *testing.T, date string, loc *time.Location) time.Time {
+	t.Helper()
+	d, err := time.ParseInLocation("2006-01-02", date, loc)
+	if err != nil {
+		t.Fatalf("parsing %q: %v", date, err)
+	}
+	return d
+}
+
+// 23:00 in São Paulo is already 02:00 UTC of the next day; a check-in with no
+// explicit date must land on the user's local day, not the UTC day.
+func TestCheckInDefaultsToUserLocalDay(t *testing.T) {
+	svc := newHabitService(t)
+	userID := createTestUser(t)
+	ctx, _ := saoPauloCtx(t)
+
+	created, err := svc.Create(ctx, userID, CreateHabitInput{
+		Name: "Ler", Icon: "📚", Color: "#0071E3",
+		Frequency: "daily", TargetDays: []int32{1, 2, 3, 4, 5, 6, 7},
+	})
+	if err != nil {
+		t.Fatalf("creating habit: %v", err)
+	}
+
+	now := utcInstant(t, "2026-03-10T02:00:00Z") // 2026-03-09 23:00 in São Paulo
+	log, err := svc.checkIn(ctx, created.ID, userID, CheckInInput{}, now)
+	if err != nil {
+		t.Fatalf("check-in: %v", err)
+	}
+	if log.LoggedDate != "2026-03-09" {
+		t.Errorf("logged_date = %q, want 2026-03-09 (local day, not the UTC day)", log.LoggedDate)
+	}
+}
+
+// The deadline is a wall-clock time in the user's timezone: 21:30 in São Paulo
+// is before a 22:00 deadline even though it is already 00:30 UTC next day.
+func TestCheckInDeadlineUsesUserTimezone(t *testing.T) {
+	svc := newHabitService(t)
+	userID := createTestUser(t)
+	ctx, _ := saoPauloCtx(t)
+
+	created, err := svc.Create(ctx, userID, CreateHabitInput{
+		Name: "Dormir cedo", Icon: "🌙", Color: "#5856D6",
+		Frequency: "daily", TargetDays: []int32{1, 2, 3, 4, 5, 6, 7},
+		CheckType: "deadline", DeadlineTime: strPtr("22:00"),
+	})
+	if err != nil {
+		t.Fatalf("creating habit: %v", err)
+	}
+
+	before := utcInstant(t, "2026-03-10T00:30:00Z") // 21:30 local on 2026-03-09
+	log, err := svc.checkIn(ctx, created.ID, userID, CheckInInput{Date: "2026-03-09"}, before)
+	if err != nil {
+		t.Fatalf("check-in at 21:30 local must be accepted before a 22:00 deadline: %v", err)
+	}
+	if log.LoggedDate != "2026-03-09" {
+		t.Errorf("logged_date = %q, want 2026-03-09", log.LoggedDate)
+	}
+
+	after := utcInstant(t, "2026-03-11T01:30:00Z") // 22:30 local on 2026-03-10
+	if _, err := svc.checkIn(ctx, created.ID, userID, CheckInInput{}, after); err == nil {
+		t.Error("check-in at 22:30 local must be rejected after a 22:00 deadline")
+	}
+}
+
+// Stats, list and heatmap all anchor on the user's local "today".
+func TestStatsAndHeatmapUseUserLocalDay(t *testing.T) {
+	svc := newHabitService(t)
+	userID := createTestUser(t)
+	ctx, loc := saoPauloCtx(t)
+
+	created, err := svc.Create(ctx, userID, CreateHabitInput{
+		Name: "Meditar", Icon: "🧘", Color: "#34C759",
+		Frequency: "daily", TargetDays: []int32{1, 2, 3, 4, 5, 6, 7},
+	})
+	if err != nil {
+		t.Fatalf("creating habit: %v", err)
+	}
+	for _, d := range []string{"2025-03-08", "2025-03-09", "2026-03-08", "2026-03-09"} {
+		if _, err := svc.CheckIn(ctx, created.ID, userID, CheckInInput{Date: d}); err != nil {
+			t.Fatalf("check-in %s: %v", d, err)
+		}
+	}
+
+	today := localMidnight(t, "2026-03-09", loc)
+
+	habits, err := svc.listByUser(ctx, userID, today)
+	if err != nil {
+		t.Fatalf("listing habits: %v", err)
+	}
+	if len(habits) != 1 || !habits[0].CompletedToday {
+		t.Fatalf("completed_today should be true for the local day, got %+v", habits)
+	}
+	if habits[0].CurrentStreak != 2 {
+		t.Errorf("current_streak = %d, want 2", habits[0].CurrentStreak)
+	}
+
+	stats, err := svc.getStats(ctx, userID, today)
+	if err != nil {
+		t.Fatalf("stats: %v", err)
+	}
+	if stats.CompletedToday != 1 {
+		t.Errorf("stats.completed_today = %d, want 1", stats.CompletedToday)
+	}
+	if stats.CurrentStreak != 2 {
+		t.Errorf("stats.current_streak = %d, want 2", stats.CurrentStreak)
+	}
+
+	heatmap, err := svc.getHeatmap(ctx, userID, today)
+	if err != nil {
+		t.Fatalf("heatmap: %v", err)
+	}
+	got := map[string]bool{}
+	for _, e := range heatmap {
+		got[e.Date] = true
+	}
+	// Window is [today-365d, ...]: 2025-03-09 is the first day in, 2025-03-08 is out.
+	for _, want := range []string{"2025-03-09", "2026-03-08", "2026-03-09"} {
+		if !got[want] {
+			t.Errorf("heatmap missing %s (entries: %v)", want, heatmap)
+		}
+	}
+	if got["2025-03-08"] {
+		t.Error("heatmap includes 2025-03-08, which is 366 days before the local today")
 	}
 }

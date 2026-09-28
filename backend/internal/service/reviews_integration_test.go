@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/myroutine/backend/internal/appctx"
 )
 
 func newReviewService(t *testing.T) *ReviewService {
@@ -11,8 +13,10 @@ func newReviewService(t *testing.T) *ReviewService {
 	return NewReviewService(requireDB(t), testLogger)
 }
 
+// yesterday is relative to the user's local today (the default timezone for a
+// bare context), matching what GetMissedDays and CheckIn use.
 func yesterday() string {
-	return time.Now().AddDate(0, 0, -1).Format("2006-01-02")
+	return appctx.Today(context.Background()).AddDate(0, 0, -1).Format("2006-01-02")
 }
 
 // The IDOR fix: reviewing a habit that belongs to someone else must fail,
@@ -158,6 +162,40 @@ func TestGetMissedDaysExcludesLoggedDays(t *testing.T) {
 	for _, m := range after {
 		if m.Date == yesterday() {
 			t.Error("a logged day must not appear as missed")
+		}
+	}
+}
+
+// The 7-day window ends on the user's local yesterday, not the DB server's
+// CURRENT_DATE.
+func TestGetMissedDaysUsesUserLocalDay(t *testing.T) {
+	reviewSvc := newReviewService(t)
+	habitSvc := newHabitService(t)
+	userID := createTestUser(t)
+	ctx, loc := saoPauloCtx(t)
+
+	habit, err := habitSvc.Create(ctx, userID, CreateHabitInput{
+		Name: "Diário", Icon: "⭐", Color: "#0071E3",
+		Frequency: "daily", TargetDays: []int32{1, 2, 3, 4, 5, 6, 7},
+	})
+	if err != nil {
+		t.Fatalf("creating habit: %v", err)
+	}
+	if _, err := habitSvc.CheckIn(ctx, habit.ID, userID, CheckInInput{Date: "2026-03-05"}); err != nil {
+		t.Fatalf("check-in: %v", err)
+	}
+
+	missed, err := reviewSvc.getMissedDays(ctx, userID, localMidnight(t, "2026-03-10", loc))
+	if err != nil {
+		t.Fatalf("getting missed days: %v", err)
+	}
+	want := []string{"2026-03-09", "2026-03-08", "2026-03-07", "2026-03-06", "2026-03-04", "2026-03-03"}
+	if len(missed) != len(want) {
+		t.Fatalf("missed = %+v, want dates %v", missed, want)
+	}
+	for i, m := range missed {
+		if m.Date != want[i] {
+			t.Errorf("missed[%d] = %s, want %s", i, m.Date, want[i])
 		}
 	}
 }

@@ -7,6 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
+
+	"github.com/myroutine/backend/internal/appctx"
 )
 
 // ReviewService handles the weekly conscious review of missed habit days
@@ -46,11 +48,17 @@ type MissedDayDTO struct {
 // GetMissedDays returns scheduled habit days with no check-in over the past
 // 7 days (excluding today — today is still in progress, not "missed").
 func (s *ReviewService) GetMissedDays(ctx context.Context, userID string) ([]MissedDayDTO, error) {
+	return s.getMissedDays(ctx, userID, appctx.Today(ctx))
+}
+
+// getMissedDays anchors the 7-day window on today, the user's local calendar
+// day (not the database server's CURRENT_DATE).
+func (s *ReviewService) getMissedDays(ctx context.Context, userID string, today time.Time) ([]MissedDayDTO, error) {
 	rows, err := s.db.Query(ctx, `
 		WITH date_series AS (
 			SELECT generate_series(
-				CURRENT_DATE - INTERVAL '7 days',
-				CURRENT_DATE - INTERVAL '1 day',
+				$2::date - INTERVAL '7 days',
+				$2::date - INTERVAL '1 day',
 				'1 day'::interval
 			)::date AS day
 		),
@@ -73,7 +81,7 @@ func (s *ReviewService) GetMissedDays(ctx context.Context, userID string) ([]Mis
 		LEFT JOIN habit_day_reviews r ON r.habit_id = c.habit_id AND r.review_date = c.day
 		WHERE hl.id IS NULL
 		ORDER BY c.day DESC, c.name ASC
-	`, userID)
+	`, userID, today.Format("2006-01-02"))
 	if err != nil {
 		return nil, fmt.Errorf("querying missed days: %w", err)
 	}

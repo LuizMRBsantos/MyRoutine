@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/myroutine/backend/internal/api/middleware"
+	"github.com/myroutine/backend/internal/appctx"
 	"github.com/myroutine/backend/internal/config"
 	"github.com/myroutine/backend/internal/service"
 )
@@ -211,7 +212,7 @@ func (h *HabitHandler) UndoCheckIn(w http.ResponseWriter, r *http.Request) {
 	date := r.URL.Query().Get("date")
 
 	if date == "" {
-		date = time.Now().Format("2006-01-02")
+		date = appctx.Today(r.Context()).Format("2006-01-02")
 	}
 
 	if err := h.habitSvc.UndoCheckIn(r.Context(), habitID, userID, date); err != nil {
@@ -234,11 +235,12 @@ func (h *HabitHandler) Logs(w http.ResponseWriter, r *http.Request) {
 	from := r.URL.Query().Get("from")
 	to := r.URL.Query().Get("to")
 
+	today := appctx.Today(r.Context())
 	if from == "" {
-		from = time.Now().AddDate(0, -1, 0).Format("2006-01-02")
+		from = today.AddDate(0, -1, 0).Format("2006-01-02")
 	}
 	if to == "" {
-		to = time.Now().Format("2006-01-02")
+		to = today.Format("2006-01-02")
 	}
 
 	logs, err := h.habitSvc.GetLogs(r.Context(), habitID, userID, from, to)

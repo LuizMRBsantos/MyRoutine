@@ -3,6 +3,9 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
+
+	"github.com/myroutine/backend/internal/appctx"
 )
 
 // Health is a consumer module: a workout logged as a habit check-in must show
@@ -30,7 +33,7 @@ func TestHealthReadsHabitLogsByReference(t *testing.T) {
 		t.Fatalf("check-in: %v", err)
 	}
 
-	activities, err := healthSvc.ListActivities(ctx, userID, today(), today())
+	activities, err := healthSvc.ListActivities(ctx, userID, userToday(ctx), userToday(ctx))
 	if err != nil {
 		t.Fatalf("listing activities: %v", err)
 	}
@@ -89,7 +92,7 @@ func TestHealthIgnoresNonHealthHabits(t *testing.T) {
 		t.Fatalf("check-in: %v", err)
 	}
 
-	activities, err := healthSvc.ListActivities(ctx, userID, today(), today())
+	activities, err := healthSvc.ListActivities(ctx, userID, userToday(ctx), userToday(ctx))
 	if err != nil {
 		t.Fatalf("listing activities: %v", err)
 	}
@@ -229,5 +232,73 @@ func TestStudySessionDeleteNotFound(t *testing.T) {
 		"00000000-0000-0000-0000-000000000000", userID)
 	if err != ErrNotFound {
 		t.Errorf("err = %v, want ErrNotFound", err)
+	}
+}
+
+// The weekly window is anchored on the user's local week: with today =
+// Tuesday 2026-03-10 and weeks=1, only Monday 2026-03-09 onward counts.
+func TestHealthSummaryUsesUserLocalWeek(t *testing.T) {
+	healthSvc := NewHealthService(requireDB(t), testLogger)
+	habitSvc := newHabitService(t)
+	userID := createTestUser(t)
+	ctx, loc := saoPauloCtx(t)
+
+	habit, err := habitSvc.Create(ctx, userID, CreateHabitInput{
+		Name: "Correr", Icon: "🏃", Color: "#0071E3",
+		Frequency: "daily", TargetDays: []int32{1, 2, 3, 4, 5, 6, 7},
+		Category: "health", CheckType: "metric",
+		MetricConfig: []MetricField{{Key: "km", Label: "Distância", Unit: "km"}},
+	})
+	if err != nil {
+		t.Fatalf("creating habit: %v", err)
+	}
+	for date, km := range map[string]float64{"2026-03-08": 3, "2026-03-09": 5} {
+		if _, err := habitSvc.CheckIn(ctx, habit.ID, userID, CheckInInput{
+			Date: date, Metrics: map[string]interface{}{"km": km},
+		}); err != nil {
+			t.Fatalf("check-in %s: %v", date, err)
+		}
+	}
+
+	summary, err := healthSvc.getSummary(ctx, userID, 1, localMidnight(t, "2026-03-10", loc))
+	if err != nil {
+		t.Fatalf("health summary: %v", err)
+	}
+	if len(summary.Weeks) != 1 {
+		t.Fatalf("weeks = %+v, want exactly the week of 2026-03-09", summary.Weeks)
+	}
+	if summary.Weeks[0].WeekStart != "2026-03-09" || summary.Weeks[0].TotalKm != 5 {
+		t.Errorf("week = %+v, want start 2026-03-09 with 5 km", summary.Weeks[0])
+	}
+}
+
+// With no date, a body measurement lands on the user's local today. The zone
+// is picked so its calendar day differs from the server's, whatever the time.
+func TestBodyMetricDefaultsToUserLocalDay(t *testing.T) {
+	healthSvc := NewHealthService(requireDB(t), testLogger)
+	userID := createTestUser(t)
+
+	serverDay := time.Now().Format("2006-01-02")
+	var ctx context.Context
+	for _, name := range []string{"Etc/GMT-14", "Etc/GMT+12"} { // UTC+14, UTC-12: 26h apart
+		loc, err := time.LoadLocation(name)
+		if err != nil {
+			t.Fatalf("loading %s: %v", name, err)
+		}
+		if c := appctx.WithTimezone(context.Background(), loc); userToday(c) != serverDay {
+			ctx = c
+			break
+		}
+	}
+	if ctx == nil {
+		t.Fatal("no candidate timezone differs from the server day")
+	}
+
+	m, err := healthSvc.UpsertBodyMetric(ctx, userID, "", floatPtr(70), nil)
+	if err != nil {
+		t.Fatalf("upsert: %v", err)
+	}
+	if m.MeasuredOn != userToday(ctx) {
+		t.Errorf("measured_on = %s, want the user's local day %s", m.MeasuredOn, userToday(ctx))
 	}
 }

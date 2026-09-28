@@ -8,6 +8,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
+
+	"github.com/myroutine/backend/internal/appctx"
 )
 
 // HealthService is a CONSUMER module: activities are habit_logs of habits
@@ -98,6 +100,11 @@ func (s *HealthService) ListActivities(ctx context.Context, userID, from, to str
 // km comes from metrics->>'km', minutes from timer_seconds or
 // metrics->>'time_min', RPE from metrics->>'rpe'.
 func (s *HealthService) GetSummary(ctx context.Context, userID string, weeks int) (*HealthSummaryDTO, error) {
+	return s.getSummary(ctx, userID, weeks, appctx.Today(ctx))
+}
+
+// getSummary anchors the week window on today, the user's local calendar day.
+func (s *HealthService) getSummary(ctx context.Context, userID string, weeks int, today time.Time) (*HealthSummaryDTO, error) {
 	if weeks <= 0 || weeks > 26 {
 		weeks = 4
 	}
@@ -113,10 +120,10 @@ func (s *HealthService) GetSummary(ctx context.Context, userID string, weeks int
 		FROM habit_logs hl
 		JOIN habits h ON h.id = hl.habit_id
 		WHERE hl.user_id = $1 AND h.category = 'health'
-		  AND hl.logged_date >= date_trunc('week', CURRENT_DATE) - ($2 - 1) * INTERVAL '1 week'
+		  AND hl.logged_date >= date_trunc('week', $3::date) - ($2 - 1) * INTERVAL '1 week'
 		GROUP BY week_start
 		ORDER BY week_start DESC`,
-		userID, weeks,
+		userID, weeks, today.Format("2006-01-02"),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("summarizing health: %w", err)
@@ -172,7 +179,7 @@ func (s *HealthService) ListBodyMetrics(ctx context.Context, userID string, limi
 // UpsertBodyMetric records one measurement per day (re-recording updates it).
 func (s *HealthService) UpsertBodyMetric(ctx context.Context, userID, measuredOn string, weightKg *float64, notes *string) (*BodyMetricDTO, error) {
 	if measuredOn == "" {
-		measuredOn = time.Now().Format("2006-01-02")
+		measuredOn = appctx.Today(ctx).Format("2006-01-02")
 	}
 	var m BodyMetricDTO
 	err := s.db.QueryRow(ctx, `

@@ -54,6 +54,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 	importHandler := handlers.NewImportHandler(cfg, db, logger)
 	healthModuleHandler := handlers.NewHealthModuleHandler(cfg, db, logger)
 	studyHandler := handlers.NewStudyHandler(cfg, db, logger)
+	inviteHandler := handlers.NewInviteHandler(db, logger)
 
 	// ─── Routes ─────────────────────────────────────────────────
 
@@ -72,12 +73,21 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 			r.Post("/login", authHandler.Login)
 			r.Post("/refresh", authHandler.Refresh)
 			r.Post("/logout", authHandler.Logout)
+			r.Get("/invites/{token}", inviteHandler.Lookup)
 		})
 
 		// Protected routes — requer JWT válido
 		r.Group(func(r chi.Router) {
 			r.Use(custommiddleware.JWTAuth(cfg))
 			r.Use(custommiddleware.RequireActiveUser(db))
+
+			// Admin — convites (só quem tem is_admin)
+			r.Route("/admin", func(r chi.Router) {
+				r.Use(custommiddleware.RequireAdmin())
+				r.Post("/invites", inviteHandler.Create)
+				r.Get("/invites", inviteHandler.List)
+				r.Delete("/invites/{id}", inviteHandler.Revoke)
+			})
 
 			// Current user profile
 			r.Route("/me", func(r chi.Router) {

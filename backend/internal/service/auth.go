@@ -50,21 +50,28 @@ type UserDTO struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
+	IsAdmin   bool      `json:"is_admin"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
 // Register creates a new user with a hashed password.
-func (s *AuthService) Register(ctx context.Context, name, email, password, timezone string) (*AuthResult, error) {
+//
+// Registration is invite-only: inviteToken must be a usable invite issued
+// for this email. Emails in ADMIN_EMAILS may register without one (that is
+// how the first account on an empty database gets created) and become admin.
+func (s *AuthService) Register(ctx context.Context, name, email, password, timezone, inviteToken string) (*AuthResult, error) {
 	email = normalizeEmail(email)
+	isAdmin := s.cfg.IsAdminEmail(email)
+	inviteToken = strings.TrimSpace(inviteToken)
+	if !isAdmin && inviteToken == "" {
+		return nil, ErrInviteRequired
+	}
 
 	// Fast path: reject known emails before paying for bcrypt. Compared with
 	// lower() so accounts created before normalization still count.
-	var exists bool
-	err := s.db.QueryRow(ctx,
-		"SELECT EXISTS(SELECT 1 FROM users WHERE lower(email) = $1)", email,
-	).Scan(&exists)
+	exists, err := s.emailExists(ctx, email)
 	if err != nil {
-		return nil, fmt.Errorf("checking email: %w", err)
+		return nil, err
 	}
 	if exists {
 		return nil, ErrEmailAlreadyExists
@@ -76,6 +83,29 @@ func (s *AuthService) Register(ctx context.Context, name, email, password, timez
 		return nil, fmt.Errorf("hashing password: %w", err)
 	}
 
+	// Claiming the invite and creating the user happen in one transaction:
+	// either both land or neither does.
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("beginning registration: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var inviteID string
+	if !isAdmin {
+		inviteID, err = claimInvite(ctx, tx, inviteToken, email)
+		if errors.Is(err, ErrInviteInvalid) {
+			// A concurrent registration with this same link may have just
+			// used it for this very email: report that as the conflict it is.
+			if exists, checkErr := s.emailExists(ctx, email); checkErr == nil && exists {
+				return nil, ErrEmailAlreadyExists
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Create user
 	var user struct {
 		ID        uuid.UUID
@@ -83,11 +113,11 @@ func (s *AuthService) Register(ctx context.Context, name, email, password, timez
 		Email     string
 		CreatedAt time.Time
 	}
-	err = s.db.QueryRow(ctx,
-		`INSERT INTO users (email, password_hash, name, timezone)
-		 VALUES ($1, $2, $3, $4)
+	err = tx.QueryRow(ctx,
+		`INSERT INTO users (email, password_hash, name, timezone, is_admin)
+		 VALUES ($1, $2, $3, $4, $5)
 		 RETURNING id, name, email, created_at`,
-		email, string(hash), name, timezone,
+		email, string(hash), name, timezone, isAdmin,
 	).Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt)
 	if err != nil {
 		// A concurrent registration can win the race between the check above
@@ -98,7 +128,31 @@ func (s *AuthService) Register(ctx context.Context, name, email, password, timez
 		return nil, fmt.Errorf("creating user: %w", err)
 	}
 
-	return s.generateTokens(ctx, user.ID.String(), user.Name, user.Email, user.CreatedAt)
+	if inviteID != "" {
+		if _, err := tx.Exec(ctx,
+			"UPDATE invites SET used_at = NOW(), used_by = $1 WHERE id = $2",
+			user.ID, inviteID,
+		); err != nil {
+			return nil, fmt.Errorf("marking invite used: %w", err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("committing registration: %w", err)
+	}
+
+	return s.generateTokens(ctx, user.ID.String(), user.Name, user.Email, isAdmin, user.CreatedAt)
+}
+
+// emailExists reports whether an account already uses email (case-insensitive).
+func (s *AuthService) emailExists(ctx context.Context, email string) (bool, error) {
+	var exists bool
+	if err := s.db.QueryRow(ctx,
+		"SELECT EXISTS(SELECT 1 FROM users WHERE lower(email) = $1)", email,
+	).Scan(&exists); err != nil {
+		return false, fmt.Errorf("checking email: %w", err)
+	}
+	return exists, nil
 }
 
 // Login validates credentials and returns tokens.
@@ -110,16 +164,17 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*AuthR
 		Name         string
 		Email        string
 		PasswordHash string
+		IsAdmin      bool
 		CreatedAt    time.Time
 	}
 
 	err := s.db.QueryRow(ctx,
-		`SELECT id, name, email, password_hash, created_at
+		`SELECT id, name, email, password_hash, is_admin, created_at
 		 FROM users WHERE lower(email) = $1 AND is_active = true
 		 ORDER BY created_at
 		 LIMIT 1`,
 		email,
-	).Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.CreatedAt)
+	).Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.IsAdmin, &user.CreatedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		// Constant-time comparison even when user not found (prevents timing attacks)
@@ -134,7 +189,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*AuthR
 		return nil, ErrInvalidCredentials
 	}
 
-	return s.generateTokens(ctx, user.ID.String(), user.Name, user.Email, user.CreatedAt)
+	return s.generateTokens(ctx, user.ID.String(), user.Name, user.Email, user.IsAdmin, user.CreatedAt)
 }
 
 // Refresh validates a refresh token and issues new access + refresh tokens.
@@ -190,17 +245,18 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*AuthRe
 	var user struct {
 		Name      string
 		Email     string
+		IsAdmin   bool
 		CreatedAt time.Time
 	}
 	err = s.db.QueryRow(ctx,
-		"SELECT name, email, created_at FROM users WHERE id = $1 AND is_active = true",
+		"SELECT name, email, is_admin, created_at FROM users WHERE id = $1 AND is_active = true",
 		stored.UserID,
-	).Scan(&user.Name, &user.Email, &user.CreatedAt)
+	).Scan(&user.Name, &user.Email, &user.IsAdmin, &user.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("getting user: %w", err)
 	}
 
-	return s.generateTokens(ctx, stored.UserID.String(), user.Name, user.Email, user.CreatedAt)
+	return s.generateTokens(ctx, stored.UserID.String(), user.Name, user.Email, user.IsAdmin, user.CreatedAt)
 }
 
 // handleRefreshReuse revokes every active refresh token of the user and
@@ -225,7 +281,7 @@ func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
 }
 
 // generateTokens creates JWT access token and opaque refresh token.
-func (s *AuthService) generateTokens(ctx context.Context, userID, name, email string, createdAt time.Time) (*AuthResult, error) {
+func (s *AuthService) generateTokens(ctx context.Context, userID, name, email string, isAdmin bool, createdAt time.Time) (*AuthResult, error) {
 	expiryHours, _ := strconv.Atoi(s.cfg.JWTExpiryHours)
 	expiresAt := time.Now().Add(time.Duration(expiryHours) * time.Hour)
 
@@ -271,6 +327,7 @@ func (s *AuthService) generateTokens(ctx context.Context, userID, name, email st
 			ID:        userID,
 			Name:      name,
 			Email:     email,
+			IsAdmin:   isAdmin,
 			CreatedAt: createdAt,
 		},
 	}, nil

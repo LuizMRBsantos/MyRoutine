@@ -15,6 +15,7 @@ import (
 // fakeRow implements pgx.Row for the single-row lookup the middleware performs.
 type fakeRow struct {
 	isActive bool
+	isAdmin  bool
 	timezone string
 	err      error
 }
@@ -23,12 +24,13 @@ func (r fakeRow) Scan(dest ...any) error {
 	if r.err != nil {
 		return r.err
 	}
-	// SELECT is_active, timezone FROM users WHERE id = $1
-	if len(dest) != 2 {
+	// SELECT is_active, is_admin, timezone FROM users WHERE id = $1
+	if len(dest) != 3 {
 		panic("unexpected scan arity")
 	}
 	*dest[0].(*bool) = r.isActive
-	*dest[1].(*string) = r.timezone
+	*dest[1].(*bool) = r.isAdmin
+	*dest[2].(*string) = r.timezone
 	return nil
 }
 
@@ -126,5 +128,42 @@ func TestRequireActiveUserFallsBackOnInvalidTimezone(t *testing.T) {
 	}
 	if gotTZ != "America/Sao_Paulo" {
 		t.Fatalf("fallback timezone = %q, want %q", gotTZ, "America/Sao_Paulo")
+	}
+}
+
+func TestRequireActiveUserInjectsAdminFlag(t *testing.T) {
+	for _, want := range []bool{true, false} {
+		q := fakeQuerier{row: fakeRow{isActive: true, isAdmin: want, timezone: "UTC"}}
+
+		var got bool
+		next := http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+			got = appctx.IsAdmin(r.Context())
+		})
+
+		rr := httptest.NewRecorder()
+		requireActiveUser(q)(next).ServeHTTP(rr, newAuthedRequest("44444444-4444-4444-4444-444444444444"))
+
+		if got != want {
+			t.Fatalf("is_admin in context = %v, want %v", got, want)
+		}
+	}
+}
+
+func TestRequireAdminBlocksNonAdmins(t *testing.T) {
+	called := false
+	next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true })
+
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/invites", nil)
+	RequireAdmin()(next).ServeHTTP(rr, req.WithContext(appctx.WithAdmin(req.Context(), false)))
+
+	if rr.Code != http.StatusForbidden || called {
+		t.Fatalf("non-admin: status = %d, next called = %v; want 403 and not called", rr.Code, called)
+	}
+
+	rr = httptest.NewRecorder()
+	RequireAdmin()(next).ServeHTTP(rr, req.WithContext(appctx.WithAdmin(req.Context(), true)))
+	if !called {
+		t.Fatal("admin: next handler was not called")
 	}
 }

@@ -66,7 +66,7 @@ func TestAuthRegisterNormalizesEmail(t *testing.T) {
 	cleanupEmail(t, raw)
 	padded := "  " + raw + " "
 
-	res, err := svc.Register(ctx, "Foo", padded, "password123", "America/Sao_Paulo")
+	res, err := svc.Register(ctx, "Foo", padded, "password123", "America/Sao_Paulo", mustInvite(t, padded))
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
@@ -90,10 +90,10 @@ func TestAuthRegisterRejectsCaseVariantDuplicate(t *testing.T) {
 	raw := uniqueEmail(t, "Dup")
 	cleanupEmail(t, raw)
 
-	if _, err := svc.Register(ctx, "Dup", raw, "password123", "UTC"); err != nil {
+	if _, err := svc.Register(ctx, "Dup", raw, "password123", "UTC", mustInvite(t, raw)); err != nil {
 		t.Fatalf("first register: %v", err)
 	}
-	_, err := svc.Register(ctx, "Dup", strings.ToUpper(raw), "password123", "UTC")
+	_, err := svc.Register(ctx, "Dup", strings.ToUpper(raw), "password123", "UTC", mustInvite(t, raw))
 	if !errors.Is(err, ErrEmailAlreadyExists) {
 		t.Fatalf("second register err = %v, want ErrEmailAlreadyExists", err)
 	}
@@ -128,6 +128,7 @@ func TestAuthRegisterConcurrentSameEmail(t *testing.T) {
 
 	email := uniqueEmail(t, "race")
 	cleanupEmail(t, email)
+	invite := mustInvite(t, email) // every attempt races on the same link
 
 	const n = 6
 	var wg sync.WaitGroup
@@ -138,7 +139,7 @@ func TestAuthRegisterConcurrentSameEmail(t *testing.T) {
 		go func(i int) {
 			defer wg.Done()
 			<-start
-			_, errs[i] = svc.Register(ctx, "Race", email, "password123", "UTC")
+			_, errs[i] = svc.Register(ctx, "Race", email, "password123", "UTC", invite)
 		}(i)
 	}
 	close(start)
@@ -169,7 +170,7 @@ func TestChangePasswordRevokesRefreshTokens(t *testing.T) {
 	email := uniqueEmail(t, "pw")
 	cleanupEmail(t, email)
 
-	reg, err := svc.Register(ctx, "Pw", email, "password123", "UTC")
+	reg, err := svc.Register(ctx, "Pw", email, "password123", "UTC", mustInvite(t, email))
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
@@ -210,7 +211,7 @@ func TestRefreshRotatesValidToken(t *testing.T) {
 	email := uniqueEmail(t, "rot")
 	cleanupEmail(t, email)
 
-	reg, err := svc.Register(ctx, "Rot", email, "password123", "UTC")
+	reg, err := svc.Register(ctx, "Rot", email, "password123", "UTC", mustInvite(t, email))
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
@@ -233,7 +234,7 @@ func TestRefreshReuseRevokesAllUserTokens(t *testing.T) {
 	email := uniqueEmail(t, "reuse")
 	cleanupEmail(t, email)
 
-	reg, err := svc.Register(ctx, "Reuse", email, "password123", "UTC") // token A
+	reg, err := svc.Register(ctx, "Reuse", email, "password123", "UTC", mustInvite(t, email)) // token A
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}
@@ -267,7 +268,7 @@ func TestRefreshUnknownTokenDoesNotRevokeOthers(t *testing.T) {
 	email := uniqueEmail(t, "unknown")
 	cleanupEmail(t, email)
 
-	reg, err := svc.Register(ctx, "Unknown", email, "password123", "UTC")
+	reg, err := svc.Register(ctx, "Unknown", email, "password123", "UTC", mustInvite(t, email))
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}

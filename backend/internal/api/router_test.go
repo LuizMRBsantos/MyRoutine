@@ -3,6 +3,8 @@ package api_test
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -34,7 +36,11 @@ var testCfg = &config.Config{
 	JWTExpiryHours:       "24",
 	JWTRefreshExpiryDays: "30",
 	CORSAllowedOrigins:   "http://localhost:5173",
+	AdminEmails:          []string{testAdminEmail},
 }
+
+// testAdminEmail may register without an invite and becomes admin.
+const testAdminEmail = "router-admin@test.local"
 
 func TestMain(m *testing.M) {
 	pool, cleanup, err := testutil.StartPostgres(context.Background())
@@ -116,7 +122,28 @@ func (c *apiClient) decode(raw []byte, target any) {
 	}
 }
 
-// newAuthedClient registers a fresh user and returns a client holding its token.
+// seedInvite stores a usable invite for email straight in the database and
+// returns its raw token (only the SHA-256 hash is stored, like the app does).
+func seedInvite(t *testing.T, email string) string {
+	t.Helper()
+	token := fmt.Sprintf("router-invite-%d", time.Now().UnixNano())
+	sum := sha256.Sum256([]byte(token))
+	_, err := testPool.Exec(context.Background(),
+		`INSERT INTO invites (token_hash, email, expires_at) VALUES ($1, $2, NOW() + INTERVAL '1 day')`,
+		hex.EncodeToString(sum[:]), email,
+	)
+	if err != nil {
+		t.Fatalf("seeding invite: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = testPool.Exec(context.Background(),
+			"DELETE FROM invites WHERE token_hash = $1", hex.EncodeToString(sum[:]))
+	})
+	return token
+}
+
+// newAuthedClient registers a fresh (invited) user and returns a client
+// holding its token.
 func newAuthedClient(t *testing.T) *apiClient {
 	t.Helper()
 	base := requireServer(t)
@@ -125,6 +152,7 @@ func newAuthedClient(t *testing.T) *apiClient {
 	email := fmt.Sprintf("router-%d@test.local", time.Now().UnixNano())
 	res, raw := c.do(http.MethodPost, "/api/v1/auth/register", map[string]string{
 		"name": "Router Test", "email": email, "password": "testpassword123",
+		"invite_token": seedInvite(t, email),
 	})
 	if res.StatusCode != http.StatusCreated {
 		t.Fatalf("register status = %d, body = %s", res.StatusCode, raw)
@@ -380,5 +408,122 @@ func TestCrossUserAccessIsBlocked(t *testing.T) {
 		if res.StatusCode != http.StatusNotFound {
 			t.Errorf("%s another user's habit: status = %d, want 404", tc.name, res.StatusCode)
 		}
+	}
+}
+
+// Invite-only registration over HTTP: the admin creates an invite, the
+// invitee looks it up and registers with it; nobody else gets in.
+func TestInviteFlowOverHTTP(t *testing.T) {
+	base := requireServer(t)
+
+	// The admin (in ADMIN_EMAILS) registers without an invite.
+	admin := &apiClient{t: t, base: base}
+	res, raw := admin.do(http.MethodPost, "/api/v1/auth/register", map[string]string{
+		"name": "Admin", "email": testAdminEmail, "password": "testpassword123",
+	})
+	if res.StatusCode != http.StatusCreated {
+		t.Fatalf("admin register status = %d, body = %s", res.StatusCode, raw)
+	}
+	var adminAuth struct {
+		AccessToken string `json:"access_token"`
+		User        struct {
+			ID      string `json:"id"`
+			IsAdmin bool   `json:"is_admin"`
+		} `json:"user"`
+	}
+	admin.decode(raw, &adminAuth)
+	admin.token = adminAuth.AccessToken
+	t.Cleanup(func() {
+		_, _ = testPool.Exec(context.Background(), "DELETE FROM invites WHERE invited_by = $1", adminAuth.User.ID)
+		_, _ = testPool.Exec(context.Background(), "DELETE FROM users WHERE id = $1", adminAuth.User.ID)
+	})
+	if !adminAuth.User.IsAdmin {
+		t.Fatal("admin register: is_admin = false, want true")
+	}
+
+	// Without an invite, a stranger cannot register.
+	stranger := &apiClient{t: t, base: base}
+	res, raw = stranger.do(http.MethodPost, "/api/v1/auth/register", map[string]string{
+		"name": "Estranho", "email": fmt.Sprintf("stranger-%d@test.local", time.Now().UnixNano()), "password": "testpassword123",
+	})
+	if res.StatusCode != http.StatusForbidden {
+		t.Fatalf("register without invite status = %d, want 403 (body %s)", res.StatusCode, raw)
+	}
+
+	// The admin invites someone.
+	guestEmail := fmt.Sprintf("guest-%d@test.local", time.Now().UnixNano())
+	res, raw = admin.do(http.MethodPost, "/api/v1/admin/invites", map[string]string{"email": guestEmail})
+	if res.StatusCode != http.StatusCreated {
+		t.Fatalf("create invite status = %d, body = %s", res.StatusCode, raw)
+	}
+	var inv struct {
+		Token string `json:"token"`
+	}
+	admin.decode(raw, &inv)
+
+	// The registration page learns which email the link is for.
+	guest := &apiClient{t: t, base: base}
+	res, raw = guest.do(http.MethodGet, "/api/v1/auth/invites/"+inv.Token, nil)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("lookup status = %d, body = %s", res.StatusCode, raw)
+	}
+
+	res, raw = guest.do(http.MethodPost, "/api/v1/auth/register", map[string]string{
+		"name": "Convidado", "email": guestEmail, "password": "testpassword123", "invite_token": inv.Token,
+	})
+	if res.StatusCode != http.StatusCreated {
+		t.Fatalf("invited register status = %d, body = %s", res.StatusCode, raw)
+	}
+	var guestAuth struct {
+		AccessToken string `json:"access_token"`
+		User        struct {
+			ID      string `json:"id"`
+			IsAdmin bool   `json:"is_admin"`
+		} `json:"user"`
+	}
+	guest.decode(raw, &guestAuth)
+	guest.token = guestAuth.AccessToken
+	t.Cleanup(func() {
+		_, _ = testPool.Exec(context.Background(), "DELETE FROM users WHERE id = $1", guestAuth.User.ID)
+	})
+	if guestAuth.User.IsAdmin {
+		t.Fatal("invited user must not be admin")
+	}
+
+	// A used link no longer resolves.
+	res, _ = guest.do(http.MethodGet, "/api/v1/auth/invites/"+inv.Token, nil)
+	if res.StatusCode != http.StatusNotFound {
+		t.Fatalf("lookup of used invite status = %d, want 404", res.StatusCode)
+	}
+
+	// A regular user cannot reach the admin area.
+	res, _ = guest.do(http.MethodGet, "/api/v1/admin/invites", nil)
+	if res.StatusCode != http.StatusForbidden {
+		t.Fatalf("non-admin GET /admin/invites status = %d, want 403", res.StatusCode)
+	}
+
+	// The admin sees the invite as used.
+	res, raw = admin.do(http.MethodGet, "/api/v1/admin/invites", nil)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("list invites status = %d, body = %s", res.StatusCode, raw)
+	}
+	var list struct {
+		Invites []struct {
+			Email  string `json:"email"`
+			Status string `json:"status"`
+		} `json:"invites"`
+	}
+	admin.decode(raw, &list)
+	found := false
+	for _, i := range list.Invites {
+		if i.Email == guestEmail {
+			found = true
+			if i.Status != "used" {
+				t.Fatalf("invite status = %q, want used", i.Status)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("created invite not listed")
 	}
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -39,6 +40,34 @@ type Config struct {
 
 	// CORS
 	CORSAllowedOrigins string
+
+	// AdminEmails can register without an invite and are promoted to admin
+	// at startup. Normalized (trimmed, lowercased). Registration is
+	// invite-only for everyone else.
+	AdminEmails []string
+}
+
+// IsAdminEmail reports whether email (any case/whitespace) is in AdminEmails.
+func (c *Config) IsAdminEmail(email string) bool {
+	email = strings.ToLower(strings.TrimSpace(email))
+	for _, admin := range c.AdminEmails {
+		if admin == email {
+			return true
+		}
+	}
+	return false
+}
+
+// parseEmailList splits a comma-separated list, dropping blanks and
+// normalizing each entry.
+func parseEmailList(raw string) []string {
+	var out []string
+	for _, part := range strings.Split(raw, ",") {
+		if e := strings.ToLower(strings.TrimSpace(part)); e != "" {
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 // Load reads configuration from environment variables.
@@ -76,6 +105,8 @@ func Load() (*Config, error) {
 		AnthropicModel:  getEnv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022"),
 
 		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:5173"),
+
+		AdminEmails: parseEmailList(os.Getenv("ADMIN_EMAILS")),
 	}
 
 	if err := cfg.validate(); err != nil {

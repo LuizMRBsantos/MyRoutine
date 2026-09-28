@@ -37,6 +37,9 @@ type registerRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 	Timezone string `json:"timezone"`
+	// InviteToken is the code from the invite link. Required unless the
+	// email is in ADMIN_EMAILS.
+	InviteToken string `json:"invite_token"`
 }
 
 type loginRequest struct {
@@ -68,10 +71,18 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		req.Timezone = "America/Sao_Paulo"
 	}
 
-	result, err := h.authSvc.Register(r.Context(), req.Name, req.Email, req.Password, req.Timezone)
+	result, err := h.authSvc.Register(r.Context(), req.Name, req.Email, req.Password, req.Timezone, req.InviteToken)
 	if err != nil {
 		if errors.Is(err, service.ErrEmailAlreadyExists) {
 			respondError(w, http.StatusConflict, "email already registered")
+			return
+		}
+		if errors.Is(err, service.ErrInviteRequired) {
+			respondError(w, http.StatusForbidden, "an invite is required to register")
+			return
+		}
+		if errors.Is(err, service.ErrInviteInvalid) {
+			respondError(w, http.StatusForbidden, "invite is invalid or expired")
 			return
 		}
 		h.logger.Error("register failed", zap.Error(err))

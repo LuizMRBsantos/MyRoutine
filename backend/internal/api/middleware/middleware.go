@@ -148,12 +148,12 @@ func requireActiveUser(db userQuerier) func(http.Handler) http.Handler {
 			ctx := r.Context()
 			userID := GetUserID(ctx)
 
-			var isActive bool
+			var isActive, isAdmin bool
 			var timezone string
 			err := db.QueryRow(ctx,
-				`SELECT is_active, timezone FROM users WHERE id = $1`,
+				`SELECT is_active, is_admin, timezone FROM users WHERE id = $1`,
 				userID,
-			).Scan(&isActive, &timezone)
+			).Scan(&isActive, &isAdmin, &timezone)
 
 			if err != nil || !isActive {
 				http.Error(w, `{"error":"account is not active"}`, http.StatusForbidden)
@@ -166,7 +166,22 @@ func requireActiveUser(db userQuerier) func(http.Handler) http.Handler {
 			}
 
 			ctx = appctx.WithTimezone(ctx, loc)
+			ctx = appctx.WithAdmin(ctx, isAdmin)
 			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+// RequireAdmin must run after RequireActiveUser. It rejects non-admins with
+// 403 so admin-only routes (invites) are invisible to regular users.
+func RequireAdmin() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !appctx.IsAdmin(r.Context()) {
+				http.Error(w, `{"error":"admin only"}`, http.StatusForbidden)
+				return
+			}
+			next.ServeHTTP(w, r)
 		})
 	}
 }

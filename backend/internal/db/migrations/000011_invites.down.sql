@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS invites;
+
+ALTER TABLE users DROP COLUMN IF EXISTS is_admin;

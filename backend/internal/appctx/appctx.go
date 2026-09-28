@@ -13,7 +13,10 @@ import (
 // contextKey is unexported so no other package can collide with these keys.
 type contextKey string
 
-const timezoneKey contextKey = "timezone"
+const (
+	timezoneKey contextKey = "timezone"
+	adminKey    contextKey = "is_admin"
+)
 
 // defaultTimezone is the app-wide fallback matching the users.timezone column
 // default. Loaded once at init; the binary embeds the tzdata database (see the
@@ -61,4 +64,16 @@ func Today(ctx context.Context) time.Time {
 	loc := UserTimezone(ctx)
 	now := nowFn().In(loc)
 	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+}
+
+// WithAdmin records whether the authenticated user is an admin.
+func WithAdmin(ctx context.Context, isAdmin bool) context.Context {
+	return context.WithValue(ctx, adminKey, isAdmin)
+}
+
+// IsAdmin reports whether the authenticated user is an admin. False when
+// unknown, so a missing value never grants admin access.
+func IsAdmin(ctx context.Context) bool {
+	v, _ := ctx.Value(adminKey).(bool)
+	return v
 }

@@ -65,6 +65,29 @@ func createTestUser(t *testing.T) string {
 	return userID
 }
 
+// mustInvite inserts a usable invite for email and returns its raw token, so
+// tests can register through the real invite-only flow.
+func mustInvite(t *testing.T, email string) string {
+	t.Helper()
+	pool := requireDB(t)
+
+	token := fmt.Sprintf("test-invite-%d", time.Now().UnixNano())
+	var id string
+	err := pool.QueryRow(context.Background(),
+		`INSERT INTO invites (token_hash, email, expires_at)
+		 VALUES ($1, $2, NOW() + INTERVAL '1 day') RETURNING id::text`,
+		hashToken(token), normalizeEmail(email),
+	).Scan(&id)
+	if err != nil {
+		t.Fatalf("creating test invite: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_, _ = pool.Exec(context.Background(), "DELETE FROM invites WHERE id = $1", id)
+	})
+	return token
+}
+
 // today is the default user's local calendar day (America/Sao_Paulo, the
 // zone a context without a timezone falls back to) — the same day the
 // services default to when a test passes context.Background() and no date.

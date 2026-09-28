@@ -18,6 +18,7 @@ import (
 	"github.com/myroutine/backend/internal/api"
 	"github.com/myroutine/backend/internal/config"
 	"github.com/myroutine/backend/internal/db"
+	"github.com/myroutine/backend/internal/service"
 	"go.uber.org/zap"
 )
 
@@ -47,6 +48,14 @@ func main() {
 	}
 	defer pool.Close()
 	logger.Info("database connected", zap.String("host", cfg.DBHost))
+
+	// Accounts listed in ADMIN_EMAILS get admin (invite management) access.
+	if err := service.PromoteAdmins(context.Background(), pool, cfg.AdminEmails); err != nil {
+		logger.Fatal("failed to promote admins", zap.Error(err))
+	}
+	if len(cfg.AdminEmails) == 0 {
+		logger.Warn("ADMIN_EMAILS is empty: nobody can create invites or register without one")
+	}
 
 	// ─── Router ───────────────────────────────────────────────────
 	router := api.NewRouter(cfg, pool, logger)

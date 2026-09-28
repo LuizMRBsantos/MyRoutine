@@ -14,7 +14,7 @@ import (
 	"github.com/myroutine/backend/internal/config"
 )
 
-const testJWTSecret = "test-secret-that-is-at-least-32-characters-long"
+const testJWTSecret = "test-secret-that-is-at-least-32-characters-long" // gitleaks:allow — fake secret, tests only
 
 func newTestAuthService(t *testing.T) *AuthService {
 	t.Helper()

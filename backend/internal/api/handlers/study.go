@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -71,6 +72,10 @@ func (h *StudyHandler) CreateSession(w http.ResponseWriter, r *http.Request) {
 
 	session, err := h.studySvc.CreateSession(r.Context(), userID, input)
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidReference) {
+			respondError(w, http.StatusBadRequest, "task not found")
+			return
+		}
 		h.logger.Error("create study session", zap.Error(err))
 		respondError(w, http.StatusInternalServerError, "failed to create session")
 		return

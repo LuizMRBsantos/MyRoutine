@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -96,6 +97,10 @@ func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	task, err := h.taskSvc.Create(r.Context(), userID, input)
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidReference) {
+			respondError(w, http.StatusBadRequest, "linked habit not found")
+			return
+		}
 		h.logger.Error("create task", zap.Error(err))
 		respondError(w, http.StatusInternalServerError, "failed to create task")
 		return
@@ -136,6 +141,10 @@ func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 	task, err := h.taskSvc.Update(r.Context(), taskID, userID, fields)
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidReference) {
+			respondError(w, http.StatusBadRequest, "linked habit not found")
+			return
+		}
 		if err == service.ErrNotFound {
 			respondError(w, http.StatusNotFound, "task not found")
 			return

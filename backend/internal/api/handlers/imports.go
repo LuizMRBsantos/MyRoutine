@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -27,6 +28,28 @@ func NewImportHandler(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) 
 	}
 }
 
+// maxImportBodyBytes caps the JSON body of the import routes. The CSV travels
+// inside it as a string, so this bounds how much a single request can make the
+// server buffer and parse.
+const maxImportBodyBytes = 2 << 20 // 2 MiB
+
+// decodeImportBody decodes a size-capped JSON body. It answers the request
+// itself on failure (413 over the cap, 400 otherwise) and reports whether the
+// handler may go on.
+func decodeImportBody(w http.ResponseWriter, r *http.Request, dst any) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, maxImportBodyBytes)
+	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			respondError(w, http.StatusRequestEntityTooLarge, "file too large (max 2 MiB)")
+			return false
+		}
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return false
+	}
+	return true
+}
+
 // POST /finance/imports/preview
 // Reads the header and guesses the column layout, so the user usually only
 // confirms instead of configuring.
@@ -34,8 +57,7 @@ func (h *ImportHandler) Preview(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Content string `json:"content"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+	if !decodeImportBody(w, r, &body) {
 		return
 	}
 	if body.Content == "" {
@@ -67,8 +89,7 @@ func (h *ImportHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 
 	var input service.CreateImportInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondError(w, http.StatusBadRequest, "invalid request body")
+	if !decodeImportBody(w, r, &input) {
 		return
 	}
 	if input.Content == "" {
@@ -81,6 +102,10 @@ func (h *ImportHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	batch, err := h.importSvc.CreateBatch(r.Context(), userID, input)
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidReference) {
+			respondError(w, http.StatusBadRequest, "credit card not found")
+			return
+		}
 		h.logger.Warn("create import batch", zap.Error(err))
 		respondError(w, http.StatusBadRequest, err.Error())
 		return
@@ -149,6 +174,10 @@ func (h *ImportHandler) ApproveEntry(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err == service.ErrNotFound {
 			respondError(w, http.StatusNotFound, "entry not found")
+			return
+		}
+		if errors.Is(err, service.ErrInvalidReference) {
+			respondError(w, http.StatusBadRequest, "credit card not found")
 			return
 		}
 		h.logger.Warn("approve entry", zap.Error(err))

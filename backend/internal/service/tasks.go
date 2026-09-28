@@ -116,6 +116,12 @@ func (s *TaskService) Create(ctx context.Context, userID string, input CreateTas
 		input.Priority = "medium"
 	}
 
+	if input.LinkedHabitID != nil {
+		if err := requireOwned(ctx, s.db, ownedHabits, *input.LinkedHabitID, userID); err != nil {
+			return nil, err
+		}
+	}
+
 	// Converte start_time "HH:MM" → aceito pelo PostgreSQL como TIME
 	var startTime interface{} = nil
 	if input.StartTime != nil && *input.StartTime != "" {
@@ -190,6 +196,11 @@ func (s *TaskService) Update(ctx context.Context, taskID, userID string, fields 
 				var v string
 				if err := json.Unmarshal(raw, &v); err != nil {
 					return nil, fmt.Errorf("invalid %s: %w", field, err)
+				}
+				if field == "linked_habit_id" {
+					if err := requireOwned(ctx, s.db, ownedHabits, v, userID); err != nil {
+						return nil, err
+					}
 				}
 				if field == "start_time" {
 					if v == "" {

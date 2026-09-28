@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
@@ -22,6 +23,42 @@ type FinanceService struct {
 
 func NewFinanceService(db *pgxpool.Pool, logger *zap.Logger) *FinanceService {
 	return &FinanceService{db: db, logger: logger}
+}
+
+// ErrInvalidReference marks an input that points at a row the caller does not
+// own (or that does not exist): a card, habit or task id from another user.
+// Handlers answer it with 400 — it is a bad request, not a missing resource.
+var ErrInvalidReference = errors.New("invalid reference")
+
+// rowQuerier is what both the pool and a transaction offer, so an ownership
+// check can run inside the caller's transaction.
+type rowQuerier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+// Tables an ownership check may target. Fixed strings only — never user input.
+const (
+	ownedCreditCards = "credit_cards"
+	ownedHabits      = "habits"
+	ownedTasks       = "tasks"
+)
+
+// requireOwned returns ErrInvalidReference unless the row `id` of `table`
+// belongs to userID. A malformed id is treated the same way: it cannot point
+// at anything the user owns.
+func requireOwned(ctx context.Context, q rowQuerier, table, id, userID string) error {
+	var one int
+	err := q.QueryRow(ctx,
+		"SELECT 1 FROM "+table+" WHERE id = $1 AND user_id = $2", id, userID,
+	).Scan(&one)
+	if err == nil {
+		return nil
+	}
+	var pgErr *pgconn.PgError
+	if errors.Is(err, pgx.ErrNoRows) || (errors.As(err, &pgErr) && pgErr.Code == "22P02") {
+		return fmt.Errorf("%w: %s %s", ErrInvalidReference, table, id)
+	}
+	return fmt.Errorf("checking %s ownership: %w", table, err)
 }
 
 // ─── DTOs ─────────────────────────────────────────────────────────────────────
@@ -100,19 +137,22 @@ type FinanceSummaryDTO struct {
 // ─── Transactions ─────────────────────────────────────────────────────────────
 
 // Colunas com prefixo t. para permitir o LEFT JOIN com credit_cards.
+// O join exige o mesmo dono: uma transação que aponte para o cartão de outro
+// usuário (linha legada) nunca traz o nome dele.
 const transactionColumns = `t.id::text, t.amount_cents, t.kind, t.category, t.description, t.method,
 	t.occurred_on::text, t.source_type, t.source_id::text, t.created_at,
 	t.credit_card_id::text, c.name, t.purchased_on::text,
 	t.installment_group_id::text, t.installment_number, t.installment_total`
 
-const transactionFrom = `FROM transactions t LEFT JOIN credit_cards c ON c.id = t.credit_card_id`
+const transactionFrom = `FROM transactions t
+	LEFT JOIN credit_cards c ON c.id = t.credit_card_id AND c.user_id = t.user_id`
 
 // returningJoined wraps a writing statement in a CTE so the row it returns can
 // still be joined with credit_cards — RETURNING alone cannot join.
 func returningJoined(write string) string {
 	return `WITH written AS (` + write + ` RETURNING *)
 		SELECT ` + transactionColumns + ` FROM written t
-		LEFT JOIN credit_cards c ON c.id = t.credit_card_id`
+		LEFT JOIN credit_cards c ON c.id = t.credit_card_id AND c.user_id = t.user_id`
 }
 
 func scanTransaction(scan func(dest ...any) error) (TransactionDTO, error) {

@@ -104,6 +104,12 @@ func (s *StudyService) CreateSession(ctx context.Context, userID string, input C
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck
 
+	if input.TaskID != nil {
+		if err := requireOwned(ctx, tx, ownedTasks, *input.TaskID, userID); err != nil {
+			return nil, err
+		}
+	}
+
 	var sess StudySessionDTO
 	err = tx.QueryRow(ctx, `
 		INSERT INTO study_sessions (user_id, subject, topic, studied_on, duration_minutes, notes, task_id)

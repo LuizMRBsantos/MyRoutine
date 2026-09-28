@@ -75,6 +75,12 @@ func (s *ImportService) CreateBatch(ctx context.Context, userID string, input Cr
 		return nil, fmt.Errorf("nenhum lançamento reconhecido no arquivo")
 	}
 
+	if input.CreditCardID != nil {
+		if err := requireOwned(ctx, s.db, ownedCreditCards, *input.CreditCardID, userID); err != nil {
+			return nil, err
+		}
+	}
+
 	rules, err := s.ListRules(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -323,6 +329,14 @@ func (s *ImportService) ApproveEntry(ctx context.Context, entryID, userID, categ
 	}
 	if e.Status != "pending" {
 		return nil, fmt.Errorf("lançamento já foi decidido (%s)", e.Status)
+	}
+
+	// Remessas gravadas antes da checagem na criação podem apontar para o
+	// cartão de outro usuário; a transação nunca herda essa referência.
+	if batchCardID != nil {
+		if err := requireOwned(ctx, tx, ownedCreditCards, *batchCardID, userID); err != nil {
+			return nil, err
+		}
 	}
 
 	if category == "" {

@@ -55,6 +55,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 	healthModuleHandler := handlers.NewHealthModuleHandler(cfg, db, logger)
 	studyHandler := handlers.NewStudyHandler(cfg, db, logger)
 	inviteHandler := handlers.NewInviteHandler(db, logger)
+	resetHandler := handlers.NewPasswordResetHandler(db, logger)
 
 	// ─── Routes ─────────────────────────────────────────────────
 
@@ -74,6 +75,8 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 			r.Post("/refresh", authHandler.Refresh)
 			r.Post("/logout", authHandler.Logout)
 			r.Get("/invites/{token}", inviteHandler.Lookup)
+			r.Get("/password-resets/{token}", resetHandler.Lookup)
+			r.Post("/password-resets/{token}", resetHandler.Reset)
 		})
 
 		// Protected routes — requer JWT válido
@@ -87,6 +90,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 				r.Post("/invites", inviteHandler.Create)
 				r.Get("/invites", inviteHandler.List)
 				r.Delete("/invites/{id}", inviteHandler.Revoke)
+				r.Post("/password-resets", resetHandler.Create)
 			})
 
 			// Current user profile

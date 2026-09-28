@@ -527,3 +527,94 @@ func TestInviteFlowOverHTTP(t *testing.T) {
 		t.Fatal("created invite not listed")
 	}
 }
+
+// newAdminClient registers the ADMIN_EMAILS account (no invite needed) and
+// returns a client holding its token.
+func newAdminClient(t *testing.T) *apiClient {
+	t.Helper()
+	admin := &apiClient{t: t, base: requireServer(t)}
+	res, raw := admin.do(http.MethodPost, "/api/v1/auth/register", map[string]string{
+		"name": "Admin", "email": testAdminEmail, "password": "testpassword123",
+	})
+	if res.StatusCode != http.StatusCreated {
+		t.Fatalf("admin register status = %d, body = %s", res.StatusCode, raw)
+	}
+	var auth struct {
+		AccessToken string `json:"access_token"`
+		User        struct {
+			ID string `json:"id"`
+		} `json:"user"`
+	}
+	admin.decode(raw, &auth)
+	admin.token = auth.AccessToken
+	t.Cleanup(func() {
+		_, _ = testPool.Exec(context.Background(), "DELETE FROM users WHERE id = $1", auth.User.ID)
+	})
+	return admin
+}
+
+// Admin-issued password reset over HTTP: the admin generates the link, the
+// user sets a new password with it, and a regular user cannot generate links.
+func TestPasswordResetOverHTTP(t *testing.T) {
+	admin := newAdminClient(t)
+	base := requireServer(t)
+
+	email := fmt.Sprintf("forgot-%d@test.local", time.Now().UnixNano())
+	user := &apiClient{t: t, base: base}
+	res, raw := user.do(http.MethodPost, "/api/v1/auth/register", map[string]string{
+		"name": "Esquecido", "email": email, "password": "senha-antiga-1", "invite_token": seedInvite(t, email),
+	})
+	if res.StatusCode != http.StatusCreated {
+		t.Fatalf("register status = %d, body = %s", res.StatusCode, raw)
+	}
+	var reg struct {
+		AccessToken string `json:"access_token"`
+		User        struct {
+			ID string `json:"id"`
+		} `json:"user"`
+	}
+	user.decode(raw, &reg)
+	user.token = reg.AccessToken
+	t.Cleanup(func() {
+		_, _ = testPool.Exec(context.Background(), "DELETE FROM users WHERE id = $1", reg.User.ID)
+	})
+
+	// Only admins can generate reset links.
+	res, _ = user.do(http.MethodPost, "/api/v1/admin/password-resets", map[string]string{"email": email})
+	if res.StatusCode != http.StatusForbidden {
+		t.Fatalf("non-admin create reset status = %d, want 403", res.StatusCode)
+	}
+
+	res, raw = admin.do(http.MethodPost, "/api/v1/admin/password-resets", map[string]string{"email": email})
+	if res.StatusCode != http.StatusCreated {
+		t.Fatalf("create reset status = %d, body = %s", res.StatusCode, raw)
+	}
+	var reset struct {
+		Token string `json:"token"`
+	}
+	admin.decode(raw, &reset)
+
+	anon := &apiClient{t: t, base: base}
+	res, raw = anon.do(http.MethodGet, "/api/v1/auth/password-resets/"+reset.Token, nil)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("lookup status = %d, body = %s", res.StatusCode, raw)
+	}
+
+	res, _ = anon.do(http.MethodPost, "/api/v1/auth/password-resets/"+reset.Token, map[string]string{"password": "curta"})
+	if res.StatusCode != http.StatusBadRequest {
+		t.Fatalf("short password status = %d, want 400", res.StatusCode)
+	}
+	res, raw = anon.do(http.MethodPost, "/api/v1/auth/password-resets/"+reset.Token, map[string]string{"password": "senha-nova-22"})
+	if res.StatusCode != http.StatusNoContent {
+		t.Fatalf("reset status = %d, body = %s", res.StatusCode, raw)
+	}
+
+	res, _ = anon.do(http.MethodPost, "/api/v1/auth/login", map[string]string{"email": email, "password": "senha-nova-22"})
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("login with new password status = %d, want 200", res.StatusCode)
+	}
+	res, _ = anon.do(http.MethodPost, "/api/v1/auth/password-resets/"+reset.Token, map[string]string{"password": "outra-senha-33"})
+	if res.StatusCode != http.StatusNotFound {
+		t.Fatalf("reused link status = %d, want 404", res.StatusCode)
+	}
+}

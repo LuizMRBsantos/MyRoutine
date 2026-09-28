@@ -1,14 +1,15 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import axios, { AxiosError, type AxiosAdapter } from 'axios'
 import { useAuthStore } from '@/store/authStore'
+import api from '@/services/api'
+import { ProtectedRoute } from './ProtectedRoute'
 
+// A renovação usa o axios puro (fora dos interceptors do `api`); espionamos o
+// `axios.post` para contar quantas vezes o /auth/refresh é chamado.
 const mockPost = vi.fn()
-vi.mock('axios', () => ({
-  default: { post: (...args: unknown[]) => mockPost(...args) },
-}))
-
-const { ProtectedRoute } = await import('./ProtectedRoute')
+const originalApiAdapter = api.defaults.adapter
 
 function renderGuarded() {
   return render(
@@ -23,9 +24,16 @@ function renderGuarded() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockPost.mockReset()
+  vi.spyOn(axios, 'post').mockImplementation((...args: unknown[]) => mockPost(...args))
   useAuthStore.setState({
     accessToken: null, refreshToken: null, user: null, isAuthenticated: false,
   })
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  api.defaults.adapter = originalApiAdapter
 })
 
 describe('ProtectedRoute', () => {
@@ -100,5 +108,46 @@ describe('ProtectedRoute', () => {
     renderGuarded()
     await waitFor(() => expect(screen.getByText('tela de login')).toBeInTheDocument())
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
+  })
+
+  it('reload + request 401 simultânea fazem um refresh só', async () => {
+    useAuthStore.setState({
+      accessToken: null, refreshToken: 'r1',
+      user: { id: '1', name: 'Luiz', email: 'l@x.com', createdAt: '' },
+      isAuthenticated: true,
+    })
+
+    // Request protegida: só passa com o access token renovado.
+    const adapter: AxiosAdapter = async (config) => {
+      if (config.headers?.Authorization !== 'Bearer novo-access') {
+        throw new AxiosError('401', 'ERR_BAD_REQUEST', config, null, {
+          status: 401, statusText: '', data: {}, headers: {}, config,
+        })
+      }
+      return { status: 200, statusText: 'OK', data: 'ok', headers: {}, config }
+    }
+    api.defaults.adapter = adapter
+
+    // Toda renovação fica pendente até o teste liberar todas juntas.
+    const waiters: ((v: unknown) => void)[] = []
+    const resolveRefresh = (v: unknown) => waiters.forEach((res) => res(v))
+    mockPost.mockImplementation(() => new Promise((res) => { waiters.push(res) }))
+
+    renderGuarded()
+    const request = api.get('/habits')
+
+    await waitFor(() => expect(mockPost).toHaveBeenCalled())
+    // Dá tempo para o 401 da request chegar ao interceptor com o refresh ainda pendente.
+    await new Promise((r) => setTimeout(r, 10))
+    resolveRefresh({
+      data: {
+        access_token: 'novo-access', refresh_token: 'r2',
+        user: { id: '1', name: 'Luiz', email: 'l@x.com', createdAt: '' },
+      },
+    })
+
+    await expect(request).resolves.toMatchObject({ data: 'ok' })
+    await waitFor(() => expect(screen.getByText('conteúdo privado')).toBeInTheDocument())
+    expect(mockPost).toHaveBeenCalledTimes(1)
   })
 })

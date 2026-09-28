@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
-import axios from 'axios'
 import { useAuthStore } from '@/store/authStore'
+import { refreshSession } from '@/services/refreshSession'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -28,19 +28,12 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     // na desmontagem de verdade — nunca no meio da requisição.
     let mounted = true
 
-    const { refreshToken, setAuth, logout } = useAuthStore.getState()
-
-    axios
-      .post('/api/v1/auth/refresh', { refresh_token: refreshToken })
-      .then(({ data }) => {
-        setAuth(
-          { accessToken: data.access_token, refreshToken: data.refresh_token },
-          data.user
-        )
-      })
-      .catch(() => {
-        logout()
-      })
+    // Mesma renovação compartilhada do interceptor do `api`: se uma request
+    // receber 401 enquanto esta troca está em andamento, ela espera esta
+    // Promise em vez de reapresentar o mesmo refresh token (o que o backend
+    // trata como roubo). Em falha, refreshSession já faz o logout.
+    refreshSession()
+      .catch(() => {})
       .finally(() => {
         if (mounted) setRefreshing(false)
       })

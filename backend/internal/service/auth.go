@@ -8,11 +8,13 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -53,10 +55,13 @@ type UserDTO struct {
 
 // Register creates a new user with a hashed password.
 func (s *AuthService) Register(ctx context.Context, name, email, password, timezone string) (*AuthResult, error) {
-	// Check if email already exists
+	email = normalizeEmail(email)
+
+	// Fast path: reject known emails before paying for bcrypt. Compared with
+	// lower() so accounts created before normalization still count.
 	var exists bool
 	err := s.db.QueryRow(ctx,
-		"SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", email,
+		"SELECT EXISTS(SELECT 1 FROM users WHERE lower(email) = $1)", email,
 	).Scan(&exists)
 	if err != nil {
 		return nil, fmt.Errorf("checking email: %w", err)
@@ -85,6 +90,11 @@ func (s *AuthService) Register(ctx context.Context, name, email, password, timez
 		email, string(hash), name, timezone,
 	).Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt)
 	if err != nil {
+		// A concurrent registration can win the race between the check above
+		// and this INSERT; the UNIQUE constraint turns that into a 23505.
+		if isUniqueViolation(err) {
+			return nil, ErrEmailAlreadyExists
+		}
 		return nil, fmt.Errorf("creating user: %w", err)
 	}
 
@@ -93,6 +103,8 @@ func (s *AuthService) Register(ctx context.Context, name, email, password, timez
 
 // Login validates credentials and returns tokens.
 func (s *AuthService) Login(ctx context.Context, email, password string) (*AuthResult, error) {
+	email = normalizeEmail(email)
+
 	var user struct {
 		ID           uuid.UUID
 		Name         string
@@ -103,7 +115,9 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*AuthR
 
 	err := s.db.QueryRow(ctx,
 		`SELECT id, name, email, password_hash, created_at
-		 FROM users WHERE email = $1 AND is_active = true`,
+		 FROM users WHERE lower(email) = $1 AND is_active = true
+		 ORDER BY created_at
+		 LIMIT 1`,
 		email,
 	).Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.CreatedAt)
 
@@ -124,6 +138,10 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*AuthR
 }
 
 // Refresh validates a refresh token and issues new access + refresh tokens.
+//
+// Presenting a token that exists but was already revoked is treated as token
+// theft (reuse detection): every active refresh token of that user is revoked
+// so both the attacker and the victim must log in again.
 func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*AuthResult, error) {
 	tokenHash := hashToken(refreshToken)
 
@@ -131,13 +149,15 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*AuthRe
 		ID        uuid.UUID
 		UserID    uuid.UUID
 		ExpiresAt time.Time
+		RevokedAt *time.Time
 	}
+	// No revoked_at filter: we need to tell "revoked" apart from "unknown".
 	err := s.db.QueryRow(ctx,
-		`SELECT rt.id, rt.user_id, rt.expires_at
+		`SELECT rt.id, rt.user_id, rt.expires_at, rt.revoked_at
 		 FROM refresh_tokens rt
-		 WHERE rt.token_hash = $1 AND rt.expires_at > NOW() AND rt.revoked_at IS NULL`,
+		 WHERE rt.token_hash = $1`,
 		tokenHash,
-	).Scan(&stored.ID, &stored.UserID, &stored.ExpiresAt)
+	).Scan(&stored.ID, &stored.UserID, &stored.ExpiresAt, &stored.RevokedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, ErrInvalidCredentials
@@ -146,13 +166,24 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*AuthRe
 		return nil, fmt.Errorf("getting refresh token: %w", err)
 	}
 
-	// Revoke old refresh token (rotation)
-	_, err = s.db.Exec(ctx,
-		"UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = $1",
+	if stored.RevokedAt != nil {
+		return nil, s.handleRefreshReuse(ctx, stored.UserID)
+	}
+	if !stored.ExpiresAt.After(time.Now()) {
+		return nil, ErrInvalidCredentials
+	}
+
+	// Revoke old refresh token (rotation). The revoked_at guard makes this
+	// atomic: if a concurrent request already rotated it, this one is a reuse.
+	tag, err := s.db.Exec(ctx,
+		"UPDATE refresh_tokens SET revoked_at = NOW() WHERE id = $1 AND revoked_at IS NULL",
 		stored.ID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("revoking token: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		return nil, s.handleRefreshReuse(ctx, stored.UserID)
 	}
 
 	// Get user
@@ -170,6 +201,17 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*AuthRe
 	}
 
 	return s.generateTokens(ctx, stored.UserID.String(), user.Name, user.Email, user.CreatedAt)
+}
+
+// handleRefreshReuse revokes every active refresh token of the user and
+// returns ErrInvalidCredentials (or a wrapped DB error if revocation failed).
+func (s *AuthService) handleRefreshReuse(ctx context.Context, userID uuid.UUID) error {
+	s.logger.Warn("refresh token reuse detected; revoking all sessions",
+		zap.String("user_id", userID.String()))
+	if err := revokeAllRefreshTokens(ctx, s.db, userID.String()); err != nil {
+		return fmt.Errorf("revoking tokens after reuse: %w", err)
+	}
+	return ErrInvalidCredentials
 }
 
 // Logout revokes a refresh token.
@@ -232,6 +274,31 @@ func (s *AuthService) generateTokens(ctx context.Context, userID, name, email st
 			CreatedAt: createdAt,
 		},
 	}, nil
+}
+
+// dbExecer is satisfied by *pgxpool.Pool and pgx.Tx.
+type dbExecer interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
+
+// revokeAllRefreshTokens revokes every still-active refresh token of a user.
+func revokeAllRefreshTokens(ctx context.Context, db dbExecer, userID string) error {
+	_, err := db.Exec(ctx,
+		"UPDATE refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL",
+		userID,
+	)
+	return err
+}
+
+// normalizeEmail canonicalizes an email for storage and lookup.
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+// isUniqueViolation reports whether err is a Postgres unique_violation (23505).
+func isUniqueViolation(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
 // hashToken creates a SHA-256 hash of a token for safe storage.

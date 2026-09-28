@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -91,6 +92,22 @@ func (c *Config) validate() error {
 	}
 	if len(c.JWTSecret) < 32 {
 		return fmt.Errorf("JWT_SECRET must be at least 32 characters")
+	}
+	if err := requirePositiveInt("JWT_EXPIRY_HOURS", c.JWTExpiryHours); err != nil {
+		return err
+	}
+	if err := requirePositiveInt("JWT_REFRESH_EXPIRY_DAYS", c.JWTRefreshExpiryDays); err != nil {
+		return err
+	}
+	return nil
+}
+
+// requirePositiveInt fails fast when an env var is not an integer > 0. A bad
+// value would otherwise parse as 0 and every token would be born expired.
+func requirePositiveInt(key, value string) error {
+	n, err := strconv.Atoi(value)
+	if err != nil || n <= 0 {
+		return fmt.Errorf("%s must be a positive integer, got %q", key, value)
 	}
 	return nil
 }

@@ -99,12 +99,25 @@ func (s *UserService) ChangePassword(ctx context.Context, userID, currentPasswor
 		return fmt.Errorf("hashing new password: %w", err)
 	}
 
-	_, err = s.db.Exec(ctx,
+	// Update the hash and kill every existing session atomically, so a stolen
+	// refresh token stops working as soon as the password changes.
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("beginning password change: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	if _, err := tx.Exec(ctx,
 		"UPDATE users SET password_hash = $2 WHERE id = $1",
 		userID, string(newHash),
-	)
-	if err != nil {
+	); err != nil {
 		return fmt.Errorf("saving new password: %w", err)
+	}
+	if err := revokeAllRefreshTokens(ctx, tx, userID); err != nil {
+		return fmt.Errorf("revoking refresh tokens: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("committing password change: %w", err)
 	}
 	return nil
 }

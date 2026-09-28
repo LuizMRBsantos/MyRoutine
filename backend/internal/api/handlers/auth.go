@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
@@ -52,7 +54,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Name == "" || req.Email == "" || req.Password == "" {
+	if req.Name == "" || strings.TrimSpace(req.Email) == "" || req.Password == "" {
 		respondError(w, http.StatusBadRequest, "name, email and password are required")
 		return
 	}
@@ -68,7 +70,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.authSvc.Register(r.Context(), req.Name, req.Email, req.Password, req.Timezone)
 	if err != nil {
-		if err == service.ErrEmailAlreadyExists {
+		if errors.Is(err, service.ErrEmailAlreadyExists) {
 			respondError(w, http.StatusConflict, "email already registered")
 			return
 		}
@@ -90,7 +92,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.authSvc.Login(r.Context(), req.Email, req.Password)
 	if err != nil {
-		if err == service.ErrInvalidCredentials {
+		if errors.Is(err, service.ErrInvalidCredentials) {
 			// Security: never reveal if email exists or password is wrong
 			respondError(w, http.StatusUnauthorized, "invalid credentials")
 			return
@@ -115,6 +117,9 @@ func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 
 	result, err := h.authSvc.Refresh(r.Context(), body.RefreshToken)
 	if err != nil {
+		if !errors.Is(err, service.ErrInvalidCredentials) {
+			h.logger.Error("refresh failed", zap.Error(err))
+		}
 		respondError(w, http.StatusUnauthorized, "invalid or expired refresh token")
 		return
 	}

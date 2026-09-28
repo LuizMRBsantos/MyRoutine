@@ -2,13 +2,48 @@ import axios from 'axios'
 import { useAuthStore } from '@/store/authStore'
 
 // O backend trata um refresh token apresentado duas vezes como roubo e revoga
-// TODAS as sessões do usuário. Por isso toda renovação passa por aqui: se já
-// existe uma em andamento, quem chegar depois recebe a mesma Promise em vez de
-// disparar outro POST /auth/refresh com o mesmo token.
+// TODAS as sessões do usuário. Por isso toda renovação passa por aqui:
+// - dentro da aba, quem chegar durante uma renovação recebe a mesma Promise;
+// - entre abas (ou PWA + navegador), a Web Locks API garante que só uma
+//   renove por vez, e cada uma relê o token persistido já dentro da trava —
+//   se outra aba girou A→B, esta usa B em vez do A (revogado) em memória.
 let inFlight: Promise<string> | null = null
 
+const LOCK_NAME = 'myroutine-auth-refresh'
+
+// Sem sessão persistida (outra aba fez logout ou o storage foi limpo).
+const LOGGED_OUT = Symbol('logged-out')
+
+// Lê o refresh token direto do storage do persist (localStorage é a fonte da
+// verdade compartilhada entre abas). Se o storage não estiver disponível
+// (ex.: bloqueado pelo navegador), o persist também não funciona, então o
+// único token que existe é o da memória.
+async function readPersistedRefreshToken(): Promise<string | typeof LOGGED_OUT | null> {
+  const { name, storage } = useAuthStore.persist.getOptions()
+  if (!name || !storage) return null
+  try {
+    const stored = await storage.getItem(name)
+    return stored?.state?.refreshToken ?? LOGGED_OUT
+  } catch {
+    return null
+  }
+}
+
+function withCrossTabLock<T>(fn: () => Promise<T>): Promise<T> {
+  const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined
+  if (!locks?.request) return fn() // navegador sem Web Locks: segue sem trava
+  return locks.request(LOCK_NAME, fn) as Promise<T>
+}
+
 async function doRefresh(): Promise<string> {
-  const { refreshToken, setAuth, logout } = useAuthStore.getState()
+  const { setAuth, logout } = useAuthStore.getState()
+
+  const persisted = await readPersistedRefreshToken()
+  if (persisted === LOGGED_OUT) {
+    logout()
+    throw new Error('sessão encerrada em outra aba')
+  }
+  const refreshToken = persisted ?? useAuthStore.getState().refreshToken
 
   if (!refreshToken) {
     logout()
@@ -21,6 +56,8 @@ async function doRefresh(): Promise<string> {
     const { data } = await axios.post('/api/v1/auth/refresh', {
       refresh_token: refreshToken,
     })
+    // setAuth persiste o novo refresh token de forma síncrona (localStorage),
+    // antes de a trava ser liberada para a próxima aba.
     setAuth(
       { accessToken: data.access_token, refreshToken: data.refresh_token },
       data.user
@@ -38,7 +75,7 @@ async function doRefresh(): Promise<string> {
 // para a próxima.
 export function refreshSession(): Promise<string> {
   if (!inFlight) {
-    inFlight = doRefresh().finally(() => {
+    inFlight = withCrossTabLock(doRefresh).finally(() => {
       inFlight = null
     })
   }

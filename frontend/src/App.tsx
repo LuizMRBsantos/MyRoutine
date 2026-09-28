@@ -9,6 +9,7 @@ import { ImportPage } from '@/pages/ImportPage'
 import { HealthPage } from '@/pages/HealthPage'
 import { StudyPage } from '@/pages/StudyPage'
 import { InvitesPage } from '@/pages/InvitesPage'
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -24,6 +25,10 @@ const router = createBrowserRouter([
   {
     path: '/register',
     element: <RegisterPage />,
+  },
+  {
+    path: '/redefinir-senha',
+    element: <ResetPasswordPage />,
   },
   {
     element: (
@@ -61,7 +66,7 @@ const router = createBrowserRouter([
         element: <StudyPage />,
       },
       {
-        path: '/convites',
+        path: '/acessos',
         element: <InvitesPage />,
       },
       {

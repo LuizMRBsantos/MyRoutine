@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { useAuthStore } from '@/store/authStore'
-import { useInvites, useCreateInvite, useRevokeInvite } from '@/hooks/useInvites'
+import { useInvites, useCreateInvite, useRevokeInvite, useCreatePasswordReset } from '@/hooks/useInvites'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { toast, apiErrorMessage } from '@/lib/toast'
-import { inviteLink, type CreatedInvite, type Invite, type InviteStatus } from '@/types/invite'
+import {
+  inviteLink, resetLink,
+  type CreatedInvite, type CreatedReset, type Invite, type InviteStatus,
+} from '@/types/invite'
 import styles from './InvitesPage.module.css'
 
 const STATUS_LABEL: Record<InviteStatus, string> = {
@@ -40,20 +43,74 @@ async function copy(text: string, what: string) {
   }
 }
 
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+}
+
+function resetMessage(reset: CreatedReset, link: string): string {
+  return (
+    'Oi! Aqui está o link para você criar uma nova senha no MyRoutine. ' +
+    `Ele vale até ${formatTime(reset.expires_at)} (1 hora) e só funciona uma vez:\n` +
+    link
+  )
+}
+
+// Link + mensagem pronta, cada um com botão de copiar. O código só existe
+// neste momento: o servidor guarda apenas o hash.
+function ShareLink({ title, link, message, linkLabel }: {
+  title: string
+  link: string
+  message: string
+  linkLabel: string
+}) {
+  return (
+    <section className={`glass-card ${styles.section}`} aria-live="polite">
+      <h2 className={styles.sectionTitle}>{title}</h2>
+      <p className={styles.hint}>
+        Copie agora: por segurança o link não fica salvo e não aparece de novo. Se perder,
+        gere outro.
+      </p>
+
+      <div className={styles.row}>
+        <input className="input" readOnly value={link} aria-label={linkLabel} onFocus={e => e.target.select()} />
+        <button type="button" className="btn btn-primary" onClick={() => copy(link, 'Link')}>
+          Copiar link
+        </button>
+      </div>
+
+      <textarea
+        className={`input ${styles.message}`}
+        readOnly
+        value={message}
+        aria-label="Mensagem sugerida"
+        onFocus={e => e.target.select()}
+      />
+      <div>
+        <button type="button" className="btn btn-ghost" onClick={() => copy(message, 'Mensagem')}>
+          Copiar mensagem
+        </button>
+      </div>
+    </section>
+  )
+}
+
 export function InvitesPage() {
   const isAdmin = useAuthStore(s => s.user?.is_admin === true)
   const invites = useInvites()
   const createInvite = useCreateInvite()
   const revokeInvite = useRevokeInvite()
+  const createReset = useCreatePasswordReset()
 
   const [email, setEmail] = useState('')
   const [created, setCreated] = useState<CreatedInvite | null>(null)
   const [toRevoke, setToRevoke] = useState<Invite | null>(null)
+  const [resetEmail, setResetEmail] = useState('')
+  const [createdReset, setCreatedReset] = useState<CreatedReset | null>(null)
 
   if (!isAdmin) {
     return (
       <div className={styles.page}>
-        <h1 className={styles.pageTitle}>Convites</h1>
+        <h1 className={styles.pageTitle}>Acessos</h1>
         <p className={styles.hint}>Esta página é só para administradores.</p>
       </div>
     )
@@ -73,15 +130,32 @@ export function InvitesPage() {
     })
   }
 
+  const handleCreateReset = (e: React.FormEvent) => {
+    e.preventDefault()
+    createReset.mutate(resetEmail, {
+      onSuccess: (reset) => {
+        setCreatedReset(reset)
+        setResetEmail('')
+      },
+      onError: (err) => {
+        const msg = apiErrorMessage(err, '')
+        toast.error(msg === 'no account with this email'
+          ? 'Não existe conta com esse e-mail.'
+          : 'Não foi possível gerar o link.')
+      },
+    })
+  }
+
   const link = created ? inviteLink(created.token) : ''
+  const rLink = createdReset ? resetLink(createdReset.token) : ''
 
   return (
     <div className={styles.page}>
       <div>
-        <h1 className={styles.pageTitle}>Convites</h1>
+        <h1 className={styles.pageTitle}>Acessos</h1>
         <p className={styles.pageSubtitle}>
-          O MyRoutine está em beta fechado. Gere um link para cada pessoa e envie pelo seu
-          e-mail ou WhatsApp. Cada link vale 7 dias, só para o e-mail convidado, e funciona uma vez.
+          O MyRoutine está em beta fechado e não envia e-mails: você gera os links aqui e envia
+          pelo seu e-mail ou WhatsApp. Convites valem 7 dias; links de nova senha, 1 hora.
         </p>
       </div>
 
@@ -104,37 +178,12 @@ export function InvitesPage() {
       </form>
 
       {created && (
-        <section className={`glass-card ${styles.section}`} aria-live="polite">
-          <h2 className={styles.sectionTitle}>Convite para {created.email}</h2>
-          <p className={styles.hint}>
-            Copie agora: por segurança o link não fica salvo e não aparece de novo. Se perder,
-            cancele este convite e gere outro.
-          </p>
-
-          <div className={styles.row}>
-            <input className="input" readOnly value={link} aria-label="Link do convite" onFocus={e => e.target.select()} />
-            <button type="button" className="btn btn-primary" onClick={() => copy(link, 'Link')}>
-              Copiar link
-            </button>
-          </div>
-
-          <textarea
-            className={`input ${styles.message}`}
-            readOnly
-            value={inviteMessage(created, link)}
-            aria-label="Mensagem sugerida"
-            onFocus={e => e.target.select()}
-          />
-          <div>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => copy(inviteMessage(created, link), 'Mensagem')}
-            >
-              Copiar mensagem
-            </button>
-          </div>
-        </section>
+        <ShareLink
+          title={`Convite para ${created.email}`}
+          link={link}
+          message={inviteMessage(created, link)}
+          linkLabel="Link do convite"
+        />
       )}
 
       <section className={`glass-card ${styles.section}`}>
@@ -171,6 +220,37 @@ export function InvitesPage() {
           </ul>
         )}
       </section>
+
+      <form className={`glass-card ${styles.section}`} onSubmit={handleCreateReset}>
+        <h2 className={styles.sectionTitle}>Redefinir senha de alguém</h2>
+        <p className={styles.hint}>
+          Quando um convidado esquecer a senha, gere aqui um link para ele criar uma nova. Gerar um
+          link novo cancela o anterior, e trocar a senha desconecta a pessoa de todos os aparelhos.
+        </p>
+        <div className={styles.row}>
+          <input
+            type="email"
+            className="input"
+            placeholder="email@da-pessoa.com"
+            aria-label="E-mail da conta para redefinir"
+            value={resetEmail}
+            onChange={e => setResetEmail(e.target.value)}
+            required
+          />
+          <button type="submit" className="btn btn-primary" disabled={createReset.isPending}>
+            {createReset.isPending ? 'Gerando…' : 'Gerar link de nova senha'}
+          </button>
+        </div>
+      </form>
+
+      {createdReset && (
+        <ShareLink
+          title={`Nova senha para ${createdReset.email}`}
+          link={rLink}
+          message={resetMessage(createdReset, rLink)}
+          linkLabel="Link de nova senha"
+        />
+      )}
 
       <ConfirmDialog
         open={toRevoke !== null}

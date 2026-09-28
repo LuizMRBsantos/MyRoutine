@@ -13,9 +13,9 @@ const navItems = [
   { to: '/studies', icon: '◆', label: 'Estudos' },
 ]
 
-// Só aparece para administradores (quem gera os convites do beta).
+// Só aparece para administradores (convites e links de redefinição de senha).
 const adminNavItems = [
-  { to: '/convites', icon: '✉', label: 'Convites' },
+  { to: '/acessos', icon: '✉', label: 'Acessos' },
 ]
 
 export function AppLayout() {

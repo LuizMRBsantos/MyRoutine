@@ -22,3 +22,14 @@ export interface CreatedInvite {
 export function inviteLink(token: string, origin = window.location.origin): string {
   return `${origin}/register?convite=${encodeURIComponent(token)}`
 }
+
+// Link de redefinição de senha gerado pelo admin (vale 1 hora, uma vez).
+export interface CreatedReset {
+  email: string
+  token: string
+  expires_at: string
+}
+
+export function resetLink(token: string, origin = window.location.origin): string {
+  return `${origin}/redefinir-senha?codigo=${encodeURIComponent(token)}`
+}

@@ -1,6 +1,6 @@
 import api from '@/services/api'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import type { Invite, CreatedInvite } from '@/types/invite'
+import type { Invite, CreatedInvite, CreatedReset } from '@/types/invite'
 
 export const inviteKeys = {
   all: ['invites'] as const,
@@ -17,6 +17,10 @@ const invitesApi = {
   },
   revoke: async (id: string): Promise<void> => {
     await api.delete(`/admin/invites/${id}`)
+  },
+  createReset: async (email: string): Promise<CreatedReset> => {
+    const { data } = await api.post('/admin/password-resets', { email })
+    return data
   },
 }
 
@@ -38,4 +42,8 @@ export function useRevokeInvite() {
     mutationFn: invitesApi.revoke,
     onSuccess: () => qc.invalidateQueries({ queryKey: inviteKeys.all }),
   })
+}
+
+export function useCreatePasswordReset() {
+  return useMutation({ mutationFn: invitesApi.createReset })
 }

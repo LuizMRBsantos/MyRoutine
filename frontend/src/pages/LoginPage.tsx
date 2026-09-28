@@ -107,6 +107,9 @@ export function LoginPage() {
           Não tem conta?{' '}
           <Link to="/register">Criar conta</Link>
         </p>
+        <p className={styles.switchLink}>
+          Esqueceu a senha? Peça um link de redefinição a quem te convidou.
+        </p>
       </motion.div>
     </div>
   )

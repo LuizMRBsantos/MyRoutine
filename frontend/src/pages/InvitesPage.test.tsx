@@ -20,6 +20,12 @@ const adapter: AxiosAdapter = async (config) => {
     listed = [{ ...createdInvite, status: 'pending', created_at: '2026-09-29T12:00:00Z', used_at: null }]
     return { status: 201, statusText: 'Created', data: createdInvite, headers: {}, config }
   }
+  if (config.method === 'post' && config.url === '/admin/password-resets') {
+    return {
+      status: 201, statusText: 'Created', headers: {}, config,
+      data: { email: 'ana@x.com', token: 'rst456', expires_at: '2026-09-29T13:00:00Z' },
+    }
+  }
   throw new Error(`unexpected ${config.method} ${config.url}`)
 }
 
@@ -74,5 +80,23 @@ describe('InvitesPage', () => {
 
     expect(screen.getByText('Esta página é só para administradores.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Gerar convite' })).not.toBeInTheDocument()
+  })
+})
+
+describe('InvitesPage — redefinir senha', () => {
+  it('gera o link de nova senha para a conta informada', async () => {
+    useAuthStore.setState({
+      user: { id: '1', name: 'Luiz', email: 'l@x.com', createdAt: '', is_admin: true },
+      isAuthenticated: true,
+    })
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.type(screen.getByLabelText('E-mail da conta para redefinir'), 'ana@x.com')
+    await user.click(screen.getByRole('button', { name: 'Gerar link de nova senha' }))
+
+    const link = await screen.findByLabelText('Link de nova senha')
+    expect(link).toHaveValue(`${window.location.origin}/redefinir-senha?codigo=rst456`)
+    expect(screen.getByText('Nova senha para ana@x.com')).toBeInTheDocument()
   })
 })

@@ -13,8 +13,14 @@ const navItems = [
   { to: '/studies', icon: '◆', label: 'Estudos' },
 ]
 
+// Só aparece para administradores (quem gera os convites do beta).
+const adminNavItems = [
+  { to: '/convites', icon: '✉', label: 'Convites' },
+]
+
 export function AppLayout() {
   const { user, refreshToken, logout } = useAuthStore()
+  const visibleNavItems = user?.is_admin ? [...navItems, ...adminNavItems] : navItems
 
   const handleLogout = async () => {
     // Revoga o refresh token no servidor antes de limpar o estado local.
@@ -40,7 +46,7 @@ export function AppLayout() {
 
         {/* Navigation */}
         <nav className={styles.nav}>
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

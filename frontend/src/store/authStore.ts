@@ -6,6 +6,8 @@ interface User {
   name: string
   email: string
   createdAt: string
+  // Admins (ADMIN_EMAILS no backend) veem a tela de convites.
+  is_admin?: boolean
 }
 
 interface AuthState {

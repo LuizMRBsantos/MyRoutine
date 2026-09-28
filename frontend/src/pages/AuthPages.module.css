@@ -138,3 +138,20 @@
   text-decoration: none;
 }
 .switchLink a:hover { text-decoration: underline; }
+
+/* Aviso neutro (beta fechado, convite inválido). Não é erro do usuário, então
+   usa a cor de destaque, não o vermelho. */
+.notice {
+  background: var(--color-accent-light);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+.inputLocked {
+  opacity: 0.75;
+  cursor: not-allowed;
+}

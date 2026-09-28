@@ -8,6 +8,7 @@ import { FinancePage } from '@/pages/FinancePage'
 import { ImportPage } from '@/pages/ImportPage'
 import { HealthPage } from '@/pages/HealthPage'
 import { StudyPage } from '@/pages/StudyPage'
+import { InvitesPage } from '@/pages/InvitesPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -58,6 +59,10 @@ const router = createBrowserRouter([
       {
         path: '/studies',
         element: <StudyPage />,
+      },
+      {
+        path: '/convites',
+        element: <InvitesPage />,
       },
       {
         path: '*',

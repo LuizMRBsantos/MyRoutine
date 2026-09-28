@@ -12,6 +12,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
+
+	"github.com/myroutine/backend/internal/appctx"
 )
 
 // FinanceService handles transactions and monthly budgets.
@@ -198,6 +200,12 @@ func (s *FinanceService) ListTransactions(ctx context.Context, userID, from, to,
 // insert is idempotent per (source_type, source_id): re-pushing the same
 // event updates the row instead of duplicating it.
 func (s *FinanceService) CreateTransaction(ctx context.Context, userID string, input CreateTransactionInput) (*TransactionDTO, error) {
+	return s.createTransaction(ctx, userID, input, appctx.Today(ctx))
+}
+
+// createTransaction defaults occurred_on to today, the user's local calendar
+// day.
+func (s *FinanceService) createTransaction(ctx context.Context, userID string, input CreateTransactionInput, today time.Time) (*TransactionDTO, error) {
 	if input.Kind == "" {
 		input.Kind = "expense"
 	}
@@ -208,7 +216,7 @@ func (s *FinanceService) CreateTransaction(ctx context.Context, userID string, i
 		input.SourceType = "manual"
 	}
 	if input.OccurredOn == "" {
-		input.OccurredOn = time.Now().Format("2006-01-02")
+		input.OccurredOn = today.Format(dateLayout)
 	}
 
 	write := `INSERT INTO transactions
@@ -241,6 +249,13 @@ func (s *FinanceService) CreateTransaction(ctx context.Context, userID string, i
 // summary and budgets keep working untouched and future commitments become
 // visible. amount_cents is the purchase total; the split never loses a cent.
 func (s *FinanceService) CreateCardPurchase(ctx context.Context, userID string, input CreateTransactionInput) ([]TransactionDTO, error) {
+	return s.createCardPurchase(ctx, userID, input, appctx.Today(ctx))
+}
+
+// createCardPurchase defaults the purchase date to today, the user's local
+// calendar day — it decides which bill catches the purchase, so a purchase at
+// 23:00 on the closing day must not slip into the next bill.
+func (s *FinanceService) createCardPurchase(ctx context.Context, userID string, input CreateTransactionInput, today time.Time) ([]TransactionDTO, error) {
 	if input.CreditCardID == nil {
 		return nil, fmt.Errorf("credit_card_id is required")
 	}
@@ -256,9 +271,11 @@ func (s *FinanceService) CreateCardPurchase(ctx context.Context, userID string, 
 		return nil, err
 	}
 
-	purchasedOn := time.Now()
+	// calendarDay keeps the local date as UTC midnight, the same shape
+	// time.Parse gives an explicit date, so billing sees one kind of value.
+	purchasedOn := calendarDay(today)
 	if input.OccurredOn != "" {
-		purchasedOn, err = time.Parse("2006-01-02", input.OccurredOn)
+		purchasedOn, err = time.Parse(dateLayout, input.OccurredOn)
 		if err != nil {
 			return nil, fmt.Errorf("invalid purchase date: %w", err)
 		}
@@ -499,7 +516,22 @@ func (s *FinanceService) DeleteTransaction(ctx context.Context, txID, userID str
 
 // GetSummary aggregates a month: totals, per-category spend and the budget
 // set for each category (categories with a budget but no spend included).
+// An empty month means the user's current local month.
 func (s *FinanceService) GetSummary(ctx context.Context, userID, month string) (*FinanceSummaryDTO, error) {
+	return s.getSummary(ctx, userID, month, appctx.Today(ctx))
+}
+
+// firstOfMonth is the first day of today's month as "YYYY-MM-DD"; today is
+// the user's local calendar day, so 31/01 23:00 in São Paulo is still January.
+func firstOfMonth(today time.Time) string {
+	return time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, time.UTC).Format(dateLayout)
+}
+
+// getSummary defaults an empty month to today's month (user's local day).
+func (s *FinanceService) getSummary(ctx context.Context, userID, month string, today time.Time) (*FinanceSummaryDTO, error) {
+	if month == "" {
+		month = firstOfMonth(today)
+	}
 	summary := &FinanceSummaryDTO{Month: month, ByCategory: []CategorySummary{}}
 
 	err := s.db.QueryRow(ctx, `
@@ -550,7 +582,17 @@ func (s *FinanceService) GetSummary(ctx context.Context, userID, month string) (
 
 // ─── Budgets ──────────────────────────────────────────────────────────────────
 
+// ListBudgets lists a month's budgets; an empty month means the user's
+// current local month.
 func (s *FinanceService) ListBudgets(ctx context.Context, userID, month string) ([]BudgetDTO, error) {
+	return s.listBudgets(ctx, userID, month, appctx.Today(ctx))
+}
+
+// listBudgets defaults an empty month to today's month (user's local day).
+func (s *FinanceService) listBudgets(ctx context.Context, userID, month string, today time.Time) ([]BudgetDTO, error) {
+	if month == "" {
+		month = firstOfMonth(today)
+	}
 	rows, err := s.db.Query(ctx, `
 		SELECT id::text, category, month::text, amount_cents
 		FROM budgets

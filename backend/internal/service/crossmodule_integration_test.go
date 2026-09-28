@@ -157,7 +157,9 @@ func TestStudySessionCreatesReferencedCheckIn(t *testing.T) {
 		t.Fatalf("creating session: %v", err)
 	}
 
-	logs, err := habitSvc.GetLogs(ctx, habit.ID, userID, today(), today())
+	// The session had no date, so it (and its check-in) landed on the user's
+	// local day — query that day, not the server's.
+	logs, err := habitSvc.GetLogs(ctx, habit.ID, userID, userToday(ctx), userToday(ctx))
 	if err != nil {
 		t.Fatalf("getting logs: %v", err)
 	}
@@ -184,7 +186,7 @@ func TestStudySessionCreatesReferencedCheckIn(t *testing.T) {
 	if err := studySvc.DeleteSession(ctx, session.ID, userID); err != nil {
 		t.Fatalf("deleting session: %v", err)
 	}
-	logs, err = habitSvc.GetLogs(ctx, habit.ID, userID, today(), today())
+	logs, err = habitSvc.GetLogs(ctx, habit.ID, userID, userToday(ctx), userToday(ctx))
 	if err != nil {
 		t.Fatalf("getting logs after delete: %v", err)
 	}
@@ -215,7 +217,7 @@ func TestStudySessionWithoutHabit(t *testing.T) {
 		t.Errorf("habit_logs rows = %d, want 0 when no habit is linked", logCount)
 	}
 
-	sessions, err := studySvc.ListSessions(ctx, userID, today(), today(), "")
+	sessions, err := studySvc.ListSessions(ctx, userID, userToday(ctx), userToday(ctx), "")
 	if err != nil {
 		t.Fatalf("listing sessions: %v", err)
 	}

@@ -166,7 +166,9 @@ func TestTaskAdvanceDoesNotOverwriteManualCheckIn(t *testing.T) {
 	}
 
 	task, err := taskSvc.Create(ctx, userID, CreateTaskInput{
-		Title: "Treino", Date: today(), LinkedHabitID: &habit.ID,
+		// The manual check-in above had no date, so it landed on the user's
+		// local day; the task must target that same day.
+		Title: "Treino", Date: userToday(ctx), LinkedHabitID: &habit.ID,
 	})
 	if err != nil {
 		t.Fatalf("creating task: %v", err)
@@ -177,7 +179,7 @@ func TestTaskAdvanceDoesNotOverwriteManualCheckIn(t *testing.T) {
 		}
 	}
 
-	logs, err := habitSvc.GetLogs(ctx, habit.ID, userID, today(), today())
+	logs, err := habitSvc.GetLogs(ctx, habit.ID, userID, userToday(ctx), userToday(ctx))
 	if err != nil {
 		t.Fatalf("getting logs: %v", err)
 	}

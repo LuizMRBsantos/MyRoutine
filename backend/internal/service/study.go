@@ -7,6 +7,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
+
+	"github.com/myroutine/backend/internal/appctx"
 )
 
 // StudyService owns study sessions (they are their own source of truth).
@@ -94,8 +96,13 @@ func (s *StudyService) ListSessions(ctx context.Context, userID, from, to, subje
 }
 
 func (s *StudyService) CreateSession(ctx context.Context, userID string, input CreateStudySessionInput) (*StudySessionDTO, error) {
+	return s.createSession(ctx, userID, input, appctx.Today(ctx))
+}
+
+// createSession defaults studied_on to today, the user's local calendar day.
+func (s *StudyService) createSession(ctx context.Context, userID string, input CreateStudySessionInput, today time.Time) (*StudySessionDTO, error) {
 	if input.StudiedOn == "" {
-		input.StudiedOn = time.Now().Format("2006-01-02")
+		input.StudiedOn = today.Format(dateLayout)
 	}
 
 	tx, err := s.db.Begin(ctx)
@@ -156,15 +163,21 @@ func (s *StudyService) DeleteSession(ctx context.Context, sessionID, userID stri
 }
 
 func (s *StudyService) GetSummary(ctx context.Context, userID string) (*StudySummaryDTO, error) {
+	return s.getSummary(ctx, userID, appctx.Today(ctx))
+}
+
+// getSummary anchors the 30-day window on today, the user's local calendar
+// day (not the database server's CURRENT_DATE).
+func (s *StudyService) getSummary(ctx context.Context, userID string, today time.Time) (*StudySummaryDTO, error) {
 	summary := &StudySummaryDTO{BySubject: []SubjectSummary{}}
 
 	rows, err := s.db.Query(ctx, `
 		SELECT subject, COALESCE(SUM(duration_minutes), 0), COUNT(*)
 		FROM study_sessions
-		WHERE user_id = $1 AND studied_on >= CURRENT_DATE - INTERVAL '30 days'
+		WHERE user_id = $1 AND studied_on >= $2::date - INTERVAL '30 days'
 		GROUP BY subject
 		ORDER BY SUM(duration_minutes) DESC`,
-		userID,
+		userID, today.Format(dateLayout),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("summarizing study: %w", err)

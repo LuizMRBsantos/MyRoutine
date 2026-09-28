@@ -3,13 +3,13 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
 	"github.com/myroutine/backend/internal/api/middleware"
+	"github.com/myroutine/backend/internal/appctx"
 	"github.com/myroutine/backend/internal/config"
 	"github.com/myroutine/backend/internal/service"
 )
@@ -36,11 +36,12 @@ func (h *FinanceHandler) ListTransactions(w http.ResponseWriter, r *http.Request
 
 	from := r.URL.Query().Get("from")
 	to := r.URL.Query().Get("to")
+	today := appctx.Today(r.Context())
 	if to == "" {
-		to = time.Now().Format("2006-01-02")
+		to = today.Format("2006-01-02")
 	}
 	if from == "" {
-		from = time.Now().AddDate(0, -1, 0).Format("2006-01-02")
+		from = today.AddDate(0, -1, 0).Format("2006-01-02")
 	}
 
 	txs, err := h.financeSvc.ListTransactions(r.Context(), userID, from, to, r.URL.Query().Get("category"))
@@ -282,13 +283,11 @@ func (h *FinanceHandler) DeleteTransaction(w http.ResponseWriter, r *http.Reques
 }
 
 // GET /finance/summary?month=YYYY-MM-DD
+// Without month, the service uses the user's current local month.
 func (h *FinanceHandler) Summary(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 
 	month := r.URL.Query().Get("month")
-	if month == "" {
-		month = time.Now().Format("2006-01") + "-01"
-	}
 
 	summary, err := h.financeSvc.GetSummary(r.Context(), userID, month)
 	if err != nil {
@@ -301,13 +300,11 @@ func (h *FinanceHandler) Summary(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET /finance/budgets?month=YYYY-MM-DD
+// Without month, the service uses the user's current local month.
 func (h *FinanceHandler) ListBudgets(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())
 
 	month := r.URL.Query().Get("month")
-	if month == "" {
-		month = time.Now().Format("2006-01") + "-01"
-	}
 
 	budgets, err := h.financeSvc.ListBudgets(r.Context(), userID, month)
 	if err != nil {

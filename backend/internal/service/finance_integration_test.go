@@ -3,7 +3,8 @@ package service
 import (
 	"context"
 	"testing"
-	"time"
+
+	"github.com/myroutine/backend/internal/appctx"
 )
 
 func newFinanceService(t *testing.T) *FinanceService {
@@ -11,8 +12,10 @@ func newFinanceService(t *testing.T) *FinanceService {
 	return NewFinanceService(requireDB(t), testLogger)
 }
 
+// currentMonth is the first day of the default user's local month, matching
+// today() — never the server clock's month.
 func currentMonth() string {
-	return time.Now().Format("2006-01") + "-01"
+	return firstOfMonth(appctx.Today(context.Background()))
 }
 
 // The mobile journal pushes the same row whenever the user re-syncs. The

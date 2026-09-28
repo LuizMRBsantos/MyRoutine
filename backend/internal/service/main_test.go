@@ -65,6 +65,11 @@ func createTestUser(t *testing.T) string {
 	return userID
 }
 
+// today is the default user's local calendar day (America/Sao_Paulo, the
+// zone a context without a timezone falls back to) — the same day the
+// services default to when a test passes context.Background() and no date.
+// Never the server clock: between 21:00 and 24:00 in São Paulo a UTC runner
+// is already on the next day, and mixing the two would make tests flaky.
 func today() string {
-	return time.Now().Format("2006-01-02")
+	return userToday(context.Background())
 }

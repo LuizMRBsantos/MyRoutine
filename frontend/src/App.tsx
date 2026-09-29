@@ -16,6 +16,7 @@ import { RegisterPage } from '@/pages/RegisterPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { Toasts } from '@/components/ui/Toasts'
+import { PwaStatus } from '@/components/pwa/PwaStatus'
 import { queryClient } from '@/lib/queryClient'
 
 const router = createBrowserRouter([
@@ -87,6 +88,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
       <Toasts />
+      <PwaStatus />
     </QueryClientProvider>
   )
 }

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -101,6 +102,10 @@ func (h *FinanceHandler) CreateTransaction(w http.ResponseWriter, r *http.Reques
 
 	tx, err := h.financeSvc.CreateTransaction(r.Context(), userID, input)
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidReference) {
+			respondError(w, http.StatusConflict, "source already used")
+			return
+		}
 		h.logger.Error("create transaction", zap.Error(err))
 		respondError(w, http.StatusInternalServerError, "failed to create transaction")
 		return

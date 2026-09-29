@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/myroutine/backend/internal/appctx"
@@ -244,5 +245,44 @@ func TestTransactionIsolatesUsers(t *testing.T) {
 	}
 	if len(txs) != 0 {
 		t.Errorf("transaction count = %d, want 0", len(txs))
+	}
+}
+
+// The source (source_type, source_id) is unique across all users. Pushing a
+// source_id that already belongs to another user must never touch their row.
+func TestTransactionSourceCannotOverwriteAnotherUsersRow(t *testing.T) {
+	svc := newFinanceService(t)
+	ctx := context.Background()
+	victim := createTestUser(t)
+	attacker := createTestUser(t)
+	sourceID := "22222222-2222-2222-2222-222222222222"
+
+	orig, err := svc.CreateTransaction(ctx, victim, CreateTransactionInput{
+		AmountCents: 5000, Category: "alimentacao", Description: "Mercado",
+		OccurredOn: today(), SourceType: "track_day", SourceID: &sourceID,
+	})
+	if err != nil {
+		t.Fatalf("victim push: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = requireDB(t).Exec(ctx, "DELETE FROM transactions WHERE source_id = $1", sourceID)
+	})
+
+	_, err = svc.CreateTransaction(ctx, attacker, CreateTransactionInput{
+		AmountCents: 1, Category: "other", Description: "sobrescrito",
+		OccurredOn: today(), SourceType: "track_day", SourceID: &sourceID,
+	})
+	if !errors.Is(err, ErrInvalidReference) {
+		t.Fatalf("foreign source_id: err = %v, want ErrInvalidReference", err)
+	}
+
+	txs, err := svc.ListTransactions(ctx, victim, today(), today(), "")
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	for _, tx := range txs {
+		if tx.ID == orig.ID && (tx.AmountCents != 5000 || tx.Description != "Mercado") {
+			t.Fatalf("victim's transaction was overwritten: %+v", tx)
+		}
 	}
 }

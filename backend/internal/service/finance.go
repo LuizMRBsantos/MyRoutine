@@ -227,7 +227,9 @@ func (s *FinanceService) createTransaction(ctx context.Context, userID string, i
 		ON CONFLICT (source_type, source_id) WHERE source_id IS NOT NULL
 		DO UPDATE SET amount_cents = EXCLUDED.amount_cents, kind = EXCLUDED.kind,
 		  category = EXCLUDED.category, description = EXCLUDED.description,
-		  method = EXCLUDED.method, occurred_on = EXCLUDED.occurred_on, updated_at = NOW()`
+		  method = EXCLUDED.method, occurred_on = EXCLUDED.occurred_on, updated_at = NOW()
+		-- The source index is global: only the owner's row may be updated.
+		WHERE transactions.user_id = EXCLUDED.user_id`
 	}
 	query := returningJoined(write)
 
@@ -236,6 +238,10 @@ func (s *FinanceService) createTransaction(ctx context.Context, userID string, i
 		input.Method, input.OccurredOn, input.SourceType, input.SourceID,
 	)
 	t, err := scanTransaction(row.Scan)
+	if errors.Is(err, pgx.ErrNoRows) {
+		// The conflicting source belongs to another user: nothing was written.
+		return nil, fmt.Errorf("%w: source already used", ErrInvalidReference)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("creating transaction: %w", err)
 	}

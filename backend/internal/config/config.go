@@ -45,6 +45,15 @@ type Config struct {
 	// at startup. Normalized (trimmed, lowercased). Registration is
 	// invite-only for everyone else.
 	AdminEmails []string
+
+	// TrustedIPHeader names the header carrying the real client IP, set by
+	// the proxy in front: X-Real-IP (nginx, local) or CloudFront-Viewer-Address
+	// (AWS). Only safe when nothing but that proxy can reach the API.
+	TrustedIPHeader string
+
+	// AuthRateLimitPerMinute caps auth requests per client IP. 0 disables it
+	// (tests only — Load() refuses 0).
+	AuthRateLimitPerMinute int
 }
 
 // IsAdminEmail reports whether email (any case/whitespace) is in AdminEmails.
@@ -107,7 +116,15 @@ func Load() (*Config, error) {
 		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "http://localhost:5173"),
 
 		AdminEmails: parseEmailList(os.Getenv("ADMIN_EMAILS")),
+
+		TrustedIPHeader: getEnv("TRUSTED_IP_HEADER", "X-Real-IP"),
 	}
+
+	limit, err := strconv.Atoi(getEnv("AUTH_RATE_LIMIT_PER_MINUTE", "10"))
+	if err != nil || limit <= 0 {
+		return nil, fmt.Errorf("AUTH_RATE_LIMIT_PER_MINUTE must be a positive integer")
+	}
+	cfg.AuthRateLimitPerMinute = limit
 
 	if err := cfg.validate(); err != nil {
 		return nil, err

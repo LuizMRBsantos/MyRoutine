@@ -737,3 +737,28 @@ func TestJournalOverHTTP(t *testing.T) {
 		t.Fatalf("oversized text status = %d, want 413", res.StatusCode)
 	}
 }
+
+// Auth routes are rate-limited per IP (no nginx in front in production).
+func TestAuthRoutesAreRateLimited(t *testing.T) {
+	requireServer(t)
+	cfg := *testCfg
+	cfg.AuthRateLimitPerMinute = 3
+	srv := httptest.NewServer(api.NewRouter(&cfg, testPool, zap.NewNop()))
+	defer srv.Close()
+
+	c := &apiClient{t: t, base: srv.URL}
+	for i := 1; i <= 3; i++ {
+		res, _ := c.do(http.MethodPost, "/api/v1/auth/login", map[string]string{"email": "x@test.local", "password": "errada-123"})
+		if res.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("attempt %d = %d, want 401 (wrong password, within the limit)", i, res.StatusCode)
+		}
+	}
+	res, _ := c.do(http.MethodPost, "/api/v1/auth/login", map[string]string{"email": "x@test.local", "password": "errada-123"})
+	if res.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("4th attempt = %d, want 429", res.StatusCode)
+	}
+	// Protected (non-auth) routes are not affected by the auth limiter.
+	if res, _ := c.do(http.MethodGet, "/health", nil); res.StatusCode == http.StatusTooManyRequests {
+		t.Fatal("/health must not be rate limited")
+	}
+}

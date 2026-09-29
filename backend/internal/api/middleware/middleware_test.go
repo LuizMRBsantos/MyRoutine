@@ -5,7 +5,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zaptest/observer"
 )
@@ -13,7 +12,7 @@ import (
 func TestLoggerLogsTrustedXRealIPInsteadOfSpoofableForwardedHeaders(t *testing.T) {
 	core, observed := observer.New(zap.InfoLevel)
 	logger := zap.New(core)
-	handler := chimiddleware.ClientIPFromHeader("X-Real-IP")(Logger(logger)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})))
+	handler := RequestMeta("X-Real-IP")(Logger(logger)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})))
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.RemoteAddr = "127.0.0.1:54321"
@@ -31,14 +30,14 @@ func TestLoggerLogsTrustedXRealIPInsteadOfSpoofableForwardedHeaders(t *testing.T
 func TestLoggerFallsBackToRemoteAddrWithoutTrustedClientIP(t *testing.T) {
 	core, observed := observer.New(zap.InfoLevel)
 	logger := zap.New(core)
-	handler := chimiddleware.ClientIPFromHeader("X-Real-IP")(Logger(logger)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})))
+	handler := RequestMeta("X-Real-IP")(Logger(logger)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})))
 
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.RemoteAddr = "127.0.0.1:54321"
 
 	handler.ServeHTTP(httptest.NewRecorder(), req)
 
-	if got := observed.All()[0].ContextMap()["ip"]; got != "127.0.0.1:54321" {
-		t.Fatalf("logged IP = %q, want original RemoteAddr %q", got, "127.0.0.1:54321")
+	if got := observed.All()[0].ContextMap()["ip"]; got != "127.0.0.1" {
+		t.Fatalf("logged IP = %q, want the peer address %q", got, "127.0.0.1")
 	}
 }

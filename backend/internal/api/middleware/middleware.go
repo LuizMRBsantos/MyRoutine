@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -26,7 +27,7 @@ func Logger(logger *zap.Logger) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
-			ip := middleware.GetClientIP(r.Context())
+			ip := appctx.RequestMetaFrom(r.Context()).IP
 			if ip == "" {
 				ip = r.RemoteAddr
 			}
@@ -188,23 +189,27 @@ func RequireAdmin() func(http.Handler) http.Handler {
 }
 
 // RequestMeta records the client IP and user agent in the context (via
-// appctx) so services can write them to the audit log. It must run after
-// ClientIPFromHeader: the IP comes from the trusted X-Real-IP set by nginx,
-// falling back to the TCP peer for direct requests. Anything that is not a
-// valid IP is dropped rather than stored.
-func RequestMeta() func(http.Handler) http.Handler {
+// appctx) for the logger, the rate limiter and the audit log.
+//
+// The IP comes from trustedHeader — X-Real-IP set by nginx locally, or
+// CloudFront-Viewer-Address in AWS — falling back to the TCP peer. Only trust
+// a header that the proxy in front always overwrites AND when nothing else
+// can reach the server (in AWS: the security group admits only CloudFront);
+// otherwise anyone could claim any IP. Unparsable values are dropped.
+func RequestMeta(trustedHeader string) func(http.Handler) http.Handler {
+	stripPort := strings.EqualFold(trustedHeader, "CloudFront-Viewer-Address")
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ip := middleware.GetClientIP(r.Context())
+			ip := ""
+			if trustedHeader != "" {
+				ip = parseIPValue(r.Header.Get(trustedHeader), stripPort)
+			}
 			if ip == "" {
 				if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
-					ip = host
+					ip = parseIPValue(host, false)
 				} else {
-					ip = r.RemoteAddr
+					ip = parseIPValue(r.RemoteAddr, false)
 				}
-			}
-			if net.ParseIP(ip) == nil {
-				ip = ""
 			}
 
 			ua := r.UserAgent()
@@ -216,4 +221,26 @@ func RequestMeta() func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
+}
+
+// parseIPValue reads "ip", "ip:port" or "[ipv6]:port". With stripPort (the
+// CloudFront-Viewer-Address format, which appends ":port" even to IPv6
+// without brackets) the text after the last colon is always the port.
+func parseIPValue(v string, stripPort bool) string {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return ""
+	}
+	if stripPort {
+		if i := strings.LastIndex(v, ":"); i > 0 {
+			v = strings.Trim(v[:i], "[]")
+		}
+	} else if host, _, err := net.SplitHostPort(v); err == nil {
+		v = host
+	}
+	addr, err := netip.ParseAddr(v)
+	if err != nil {
+		return ""
+	}
+	return addr.Unmap().String()
 }

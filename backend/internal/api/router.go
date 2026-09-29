@@ -23,8 +23,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 
 	// ─── Global Middleware ──────────────────────────────────────
 	r.Use(middleware.RequestID)
-	r.Use(middleware.ClientIPFromHeader("X-Real-IP"))
-	r.Use(custommiddleware.RequestMeta())
+	r.Use(custommiddleware.RequestMeta(cfg.TrustedIPHeader))
 	r.Use(custommiddleware.Logger(logger))
 	r.Use(custommiddleware.Metrics())
 	r.Use(middleware.Recoverer)
@@ -70,8 +69,12 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 	// API v1
 	r.Route("/api/v1", func(r chi.Router) {
 
-		// Auth — sem JWT
+		// Auth — sem JWT. Limite de tentativas por IP contra adivinhação de
+		// senha (em produção não há nginx na frente).
 		r.Route("/auth", func(r chi.Router) {
+			if cfg.AuthRateLimitPerMinute > 0 {
+				r.Use(custommiddleware.RateLimit(cfg.AuthRateLimitPerMinute))
+			}
 			r.Post("/register", authHandler.Register)
 			r.Post("/login", authHandler.Login)
 			r.Post("/refresh", authHandler.Refresh)

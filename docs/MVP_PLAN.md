@@ -1,6 +1,6 @@
 # MyRoutine — Plano do beta fechado (MVP)
 
-> Documento vivo. Última atualização: 29/09/2026.
+> Documento vivo. Última atualização: 29/09/2026 (tarde).
 > Substitui o roteiro de `docs/PROJECT_CONTEXT.md` (de 28/06, desatualizado).
 
 ## Objetivo
@@ -17,7 +17,7 @@ estar prontas.
 | # | Etapa | Status |
 |---|---|---|
 | 0 | Consertar o que quebra com várias pessoas | ✅ concluída |
-| 1 | Convites e conta | 🔄 2 de 4 peças |
+| 1 | Convites e conta | 🔄 3 de 4 peças |
 | 2 | App no celular e no Mac (PWA, layout responsivo, Track Day web, revisão semanal) | ⏳ |
 | 3 | IA (Claude): assistente e insights sob demanda | ⏳ |
 | 4 | Notificações (Web Push): uma consolidada por horário, no fuso de cada pessoa | ⏳ |
@@ -54,8 +54,8 @@ do convite já prova que o e-mail é da pessoa.
 |---|---|
 | 1. Convites por link | ✅ |
 | 2. "Esqueci minha senha" por link | ✅ |
-| 3. Exportar e apagar a conta (LGPD), mais uma tela "Minha conta" | ⏳ **próxima** |
-| 4. Registro de ações sensíveis (`audit_logs`) | ⏳ |
+| 3. Exportar e apagar a conta (LGPD), mais uma tela "Minha conta" | ✅ |
+| 4. Registro de ações sensíveis (`audit_logs`) | ⏳ **próxima** |
 
 **Peça 1, convites** (migração `000011`):
 - Cadastro só com convite. A exceção são os e-mails em `ADMIN_EMAILS`, que se
@@ -80,10 +80,28 @@ do convite já prova que o e-mail é da pessoa.
   relação de confiança, aceitável num beta de família. A peça 4 precisa registrar
   cada link gerado.
 
-**Peça 3, próxima:**
-- `GET /me/export`: arquivo JSON com todos os dados do usuário.
-- `DELETE /me`: pede a senha e apaga de verdade, via `ON DELETE CASCADE`.
-- Tela "Minha conta": nome, senha, baixar dados e apagar conta.
+**Peça 3, LGPD e "Minha conta"** (`/conta`, no menu para todos):
+- `GET /api/v1/me/export`: baixa `myroutine-dados-AAAA-MM-DD.json` com o perfil e
+  uma lista por tabela. Nunca inclui a senha nem as chaves de sessão.
+  - O teste `TestExportCoversEveryUserTable` consulta o banco e **falha se surgir
+    uma tabela com `user_id` que ficou fora da exportação**.
+- `DELETE /api/v1/me` com `{"password"}`: apaga de verdade (cascade). O registro
+  de ações é mantido sem dono e **sem IP e sem navegador**.
+- A tela tem perfil (nome e fuso horário, com sugestão do fuso do aparelho),
+  troca de senha (desloga, porque as sessões caem), baixar dados e apagar conta
+  (em dois passos, com senha).
+- O cadastro passou a enviar o fuso do navegador. Um fuso inválido no cadastro
+  vira São Paulo, e no `PATCH /me` responde 400.
+- Correções encontradas no caminho:
+  - Senha atual errada agora responde `403`, e não `401`, que o frontend lia como
+    sessão expirada.
+  - O aviso global de erro dava toast duplicado, com a mensagem crua do servidor
+    em inglês. Agora uma mutation pode marcar `meta: { handlesError: true }`.
+  - A lista de fusos do navegador não trazia "UTC".
+
+**Peça 4, próxima:** gravar em `audit_logs` login, falha de login, troca e
+redefinição de senha, geração de convite e de link de redefinição (admin),
+exportação e exclusão de conta.
 
 ## Pendências anotadas (não esquecer)
 
@@ -113,6 +131,8 @@ do convite já prova que o e-mail é da pessoa.
 - A renovação de sessão não tem timeout. Um logout numa aba só é percebido nas
   outras no próximo 401.
 - O modelo `ANTHROPIC_MODEL` padrão está desatualizado. Atualizar na Etapa 3.
+- GitLeaks: rodar sempre no projeto inteiro antes do push. Já houve dois alarmes
+  falsos em testes, e os achados revisados ficam no `.gitleaksignore`.
 
 ## Como trabalhamos
 

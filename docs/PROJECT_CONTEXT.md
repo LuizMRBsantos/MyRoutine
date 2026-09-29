@@ -1,5 +1,9 @@
 # MyRoutine — Contexto Completo do Projeto
 
+> ⚠️ **Documento histórico (28/06/2026), desatualizado.** Muita coisa listada como
+> "não feito" já existe. Para o plano e o status atuais, veja
+> [`docs/MVP_PLAN.md`](MVP_PLAN.md); para rodar o projeto, [`docs/RUNNING.md`](RUNNING.md).
+
 > Este arquivo documenta tudo que foi feito, decisões tomadas, o que funciona
 > e o que ainda precisa ser implementado. Criado em 28/06/2026.
 

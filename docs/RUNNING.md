@@ -43,13 +43,34 @@ Backend integration tests start a throwaway Postgres through testcontainers and
 apply the real migrations. They skip automatically when Docker is unavailable —
 set `SKIP_INTEGRATION=1` to skip them explicitly and run only unit tests.
 
+## Access: invite-only registration
+
+Registration requires an invite. The app sends no email: an admin generates
+links in the **Acessos** screen (`/acessos`) and sends them personally.
+
+- Set `ADMIN_EMAILS` in `.env` (comma-separated). Those emails can register
+  without an invite, become admins, and are promoted at startup if the account
+  already exists. On an empty database this is how the first account is made.
+- Invite link: `/register?convite=<code>`, valid for 7 days, single use, bound
+  to the invited email.
+- Password reset link (admin-generated): `/redefinir-senha?codigo=<code>`,
+  valid for 1 hour, single use. A new link cancels the previous one, and a
+  successful reset logs the account out everywhere.
+- Only SHA-256 hashes of these codes are stored.
+
 ## Smoke test (API)
 
 ```bash
 BASE=http://localhost:8082/api/v1
+# Register the admin (email must be in ADMIN_EMAILS — no invite needed)
 curl -X POST $BASE/auth/register -H 'Content-Type: application/json' \
-  -d '{"email":"me@example.com","password":"testpassword123","name":"Me"}'
+  -d '{"email":"<admin email>","password":"testpassword123","name":"Me"}'
 # → returns access_token; use it as: -H "Authorization: Bearer <token>"
+
+# Invite someone; the response carries the one-time token for the link
+curl -X POST $BASE/admin/invites -H "Authorization: Bearer <token>" \
+  -H 'Content-Type: application/json' -d '{"email":"friend@example.com"}'
+
 curl $BASE/habits -H "Authorization: Bearer <token>"
 ```
 

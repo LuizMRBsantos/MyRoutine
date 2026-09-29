@@ -9,8 +9,10 @@ Deixar o MyRoutine pronto para **até 10 convidados** (amigos e família) usarem
 verdade, em **web, iPhone e Mac**. Nos dois últimos, ele roda como **PWA**, o site
 instalado pela tela inicial ou pelo dock, sem App Store. A hospedagem é na **AWS**.
 
-**Os convites só saem depois da Etapa 6.** Até lá, IA e notificações já precisam
-estar prontas.
+**Decisão de 29/09:** a IA foi **adiada para depois do lançamento**, porque pede
+decisões de produto com calma. A nova ordem é: AWS (5), depois notificações (4),
+depois a revisão final e os convites (6). **Os convites saem quando o app estiver
+no ar e com notificações.** A IA chega depois, como novidade para os convidados.
 
 ## Etapas
 
@@ -19,9 +21,9 @@ estar prontas.
 | 0 | Consertar o que quebra com várias pessoas | ✅ concluída |
 | 1 | Convites e conta | ✅ concluída |
 | 2 | App no celular e no Mac (PWA, layout responsivo, Track Day web, revisão semanal) | ✅ concluída |
-| 3 | IA (Claude): assistente e insights sob demanda | ⏳ **próxima** |
-| 4 | Notificações (Web Push): uma consolidada por horário, no fuso de cada pessoa | ⏳ |
-| 5 | Colocar no ar na AWS. **Luiz faz, com o Claude ensinando passo a passo** | ⏳ |
+| 3 | IA (Claude): assistente e insights sob demanda | ⏸ adiada (pós-lançamento) |
+| 4 | Notificações (Web Push): uma consolidada por horário, no fuso de cada pessoa | ⏳ depois da AWS (testar no iPhone real exige HTTPS) |
+| 5 | Colocar no ar na AWS. **Luiz faz, com o Claude ensinando passo a passo** | ⏳ **próxima** |
 | 6 | Revisão final, teste como convidado e envio dos convites | ⏳ |
 
 ### Etapa 0: concluída (27–29/09)

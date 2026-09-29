@@ -18,7 +18,7 @@ estar prontas.
 |---|---|---|
 | 0 | Consertar o que quebra com várias pessoas | ✅ concluída |
 | 1 | Convites e conta | ✅ concluída |
-| 2 | App no celular e no Mac (PWA, layout responsivo, Track Day web, revisão semanal) | 🔄 2 de 4 peças |
+| 2 | App no celular e no Mac (PWA, layout responsivo, Track Day web, revisão semanal) | 🔄 3 de 4 peças |
 | 3 | IA (Claude): assistente e insights sob demanda | ⏳ |
 | 4 | Notificações (Web Push): uma consolidada por horário, no fuso de cada pessoa | ⏳ |
 | 5 | Colocar no ar na AWS. **Luiz faz, com o Claude ensinando passo a passo** | ⏳ |
@@ -125,8 +125,8 @@ do convite já prova que o e-mail é da pessoa.
 |---|---|
 | 1. Tela que cabe no celular | ✅ |
 | 2. App instalável (PWA): manifest, ícones, service worker | ✅ |
-| 3. Diário (Track Day) na web, portando o parser do app mobile | ⏳ **próxima** |
-| 4. Ligar a revisão semanal (`WeeklyReview`, hoje "estacionada") | ⏳ |
+| 3. Diário (Track Day) na web, portando o parser do app mobile | ✅ |
+| 4. Ligar a revisão semanal (`WeeklyReview`, hoje "estacionada") | ⏳ **próxima** |
 
 **Peça 1, layout responsivo** (`AppLayout`):
 - Acima de 1024px: menu lateral completo.
@@ -162,6 +162,48 @@ do convite já prova que o e-mail é da pessoa.
   "Adicionar à Tela de Início" fica para depois da Etapa 5 (AWS com domínio).
 - `npm audit`: 0 vulnerabilidades. O `undici` do jsdom, usado só nos testes, foi
   atualizado.
+
+**Peça 3, Diário / Track Day** (`/diario`, 2º item do menu):
+- **Backend** (migração `000013`, `internal/service/journal.go`):
+  - Há um texto por pessoa por dia, com no máximo 20 mil caracteres. Ele entra
+    na exportação LGPD, e o teste de cobertura pegou a tabela nova antes de ela
+    ser incluída.
+  - O `source_id` de um item é derivado de forma determinística: UUIDv5 do id do
+    diário com a linha normalizada. A mesma linha sempre gera a mesma etiqueta,
+    então registrar de novo não duplica.
+  - O gasto vira uma transação do dia, e o treino vira o check-in do hábito, os
+    dois com `source_type='track_day'`.
+  - O diário **nunca sobrescreve** um check-in feito à mão ou vindo de outro
+    lugar: nesse caso responde 409 e explica.
+  - API:
+    - `GET` e `PUT /journal/{data}`;
+    - `POST /journal/{data}/items`;
+    - `DELETE /journal/{data}/items/{source_id}`.
+- **Web:**
+  - O parser foi trazido do app mobile (`src/lib/trackDay/parser.ts`), com os 23
+    testes herdados.
+  - Corrigidos 3 bugs do parser, comprovados no original:
+    - "30min" era lido como distância;
+    - "1h" virava 1 minuto;
+    - "1500m" virava 1500 km.
+  - Novidades do parser:
+    - valor em centavos, inclusive `1.234,56`;
+    - `#tag` convertida para uma categoria de Finanças;
+    - identidade da linha (`lineKey`) igual à do backend.
+  - A tela salva sozinha 0,8s depois da última digitação, e também ao trocar de
+    dia e ao sair do campo.
+  - O painel "Reconhecido no texto" traz Registrar, "✓ Registrado" e Desfazer.
+    Mostra também o que foi registrado de uma linha que saiu do texto.
+  - Um treino só vai para um hábito de Saúde com nome correspondente. Sem esse
+    hábito, a tela orienta a criar um.
+- **Corrigido no caminho:**
+  - **Segurança:** o `ON CONFLICT (source_type, source_id)` das transações era
+    global. Um `source_id` de outra pessoa **sobrescrevia o gasto dela**. Agora
+    só atualiza a linha do próprio dono, e o caso responde 409.
+  - **Visual:** não havia estilo de botão desativado no app inteiro. Agora existe
+    `.btn:disabled`.
+- Menu: Início, Diário, Hábitos e Planner ficam na barra do celular, e Finanças
+  passou para o "Mais". A ordem ainda pode mudar se o Luiz preferir.
 
 ## Pendências anotadas (não esquecer)
 

@@ -52,6 +52,8 @@ export function useReviewDay() {
       reviewDate: string
       status: 'migrated' | 'discarded'
     }) => reviewApi.reviewDay(habitId, reviewDate, status),
+    // A tela mostra a própria mensagem (em português) quando falha.
+    meta: { handlesError: true },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: reviewKeys.missed() })
     },

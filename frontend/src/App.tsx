@@ -12,6 +12,7 @@ import { InvitesPage } from '@/pages/InvitesPage'
 import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
 import { AccountPage } from '@/pages/AccountPage'
 import { JournalPage } from '@/pages/JournalPage'
+import { ReviewPage } from '@/pages/ReviewPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
@@ -71,6 +72,10 @@ const router = createBrowserRouter([
       {
         path: '/studies',
         element: <StudyPage />,
+      },
+      {
+        path: '/revisao',
+        element: <ReviewPage />,
       },
       {
         path: '/conta',

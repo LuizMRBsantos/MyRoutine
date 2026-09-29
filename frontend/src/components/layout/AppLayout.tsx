@@ -22,6 +22,8 @@ const navItems: NavItem[] = [
   { to: '/finance', icon: '◈', label: 'Finanças' },
   { to: '/health', icon: '◉', label: 'Saúde' },
   { to: '/studies', icon: '◆', label: 'Estudos' },
+  // Revisão semanal: só por escolha, sem contador (habit-review-flow).
+  { to: '/revisao', icon: '↺', label: 'Revisão' },
   { to: '/conta', icon: '⚙', label: 'Minha conta' },
 ]
 

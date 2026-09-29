@@ -54,7 +54,7 @@ describe('AppLayout — navegação no celular', () => {
     await user.click(screen.getByRole('button', { name: /Mais/, ...H }))
     const sheet = byLabel('dialog', 'Mais opções')
     const items = within(sheet).getAllByRole('link', H).map(l => l.textContent)
-    expect(items).toEqual(['◈Finanças', '◉Saúde', '◆Estudos', '⚙Minha conta', '✉Acessos'])
+    expect(items).toEqual(['◈Finanças', '◉Saúde', '◆Estudos', '↺Revisão', '⚙Minha conta', '✉Acessos'])
     expect(within(sheet).getByRole('button', { name: /Sair/, ...H })).toBeInTheDocument()
   })
 

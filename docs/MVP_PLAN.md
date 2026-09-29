@@ -18,8 +18,8 @@ estar prontas.
 |---|---|---|
 | 0 | Consertar o que quebra com várias pessoas | ✅ concluída |
 | 1 | Convites e conta | ✅ concluída |
-| 2 | App no celular e no Mac (PWA, layout responsivo, Track Day web, revisão semanal) | 🔄 3 de 4 peças |
-| 3 | IA (Claude): assistente e insights sob demanda | ⏳ |
+| 2 | App no celular e no Mac (PWA, layout responsivo, Track Day web, revisão semanal) | ✅ concluída |
+| 3 | IA (Claude): assistente e insights sob demanda | ⏳ **próxima** |
 | 4 | Notificações (Web Push): uma consolidada por horário, no fuso de cada pessoa | ⏳ |
 | 5 | Colocar no ar na AWS. **Luiz faz, com o Claude ensinando passo a passo** | ⏳ |
 | 6 | Revisão final, teste como convidado e envio dos convites | ⏳ |
@@ -126,7 +126,7 @@ do convite já prova que o e-mail é da pessoa.
 | 1. Tela que cabe no celular | ✅ |
 | 2. App instalável (PWA): manifest, ícones, service worker | ✅ |
 | 3. Diário (Track Day) na web, portando o parser do app mobile | ✅ |
-| 4. Ligar a revisão semanal (`WeeklyReview`, hoje "estacionada") | ⏳ **próxima** |
+| 4. Revisão semanal (`/revisao`) | ✅ |
 
 **Peça 1, layout responsivo** (`AppLayout`):
 - Acima de 1024px: menu lateral completo.
@@ -204,6 +204,19 @@ do convite já prova que o e-mail é da pessoa.
     `.btn:disabled`.
 - Menu: Início, Diário, Hábitos e Planner ficam na barra do celular, e Finanças
   passou para o "Mais". A ordem ainda pode mudar se o Luiz preferir.
+
+**Peça 4, revisão semanal** (`/revisao`, "↺ Revisão" no menu; no celular fica no "Mais"):
+- A revisão tinha sido desligada porque aparecia sozinha como uma faixa com
+  contador de "N dias sem registro", o que viola a skill `habit-review-flow`.
+  Voltou como **página por escolha**, sem contador, com texto neutro e sem
+  comemoração.
+- Os dias aparecem agrupados. Para cada hábito há a escolha **Migrar / Descartar**,
+  e dá para mudar de ideia (o backend faz upsert). O componente antigo foi removido.
+- Corrigido: dias **anteriores à criação do hábito** contavam como "sem registro".
+  Um hábito novo chegava com uma semana de pendências. O dia de criação agora
+  entra no fuso do usuário.
+- Os testes do frontend garantem as regras do produto: nenhum número de dias e
+  nenhum texto de comemoração.
 
 ## Pendências anotadas (não esquecer)
 

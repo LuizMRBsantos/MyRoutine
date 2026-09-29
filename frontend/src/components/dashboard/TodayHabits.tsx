@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { Link } from 'react-router-dom'
 import type { Habit } from '@/types/habit'
 import { useCheckIn, useUndoCheckIn } from '@/hooks/useHabits'
 import styles from './TodayHabits.module.css'
@@ -6,9 +7,12 @@ import styles from './TodayHabits.module.css'
 interface TodayHabitsProps {
   habits: Habit[]
   isLoading: boolean
+  // Falha ao carregar (ex.: sem internet) não é "lista vazia": dizer
+  // "nenhum hábito" faria parecer que os hábitos sumiram.
+  isError?: boolean
 }
 
-export function TodayHabits({ habits, isLoading }: TodayHabitsProps) {
+export function TodayHabits({ habits, isLoading, isError = false }: TodayHabitsProps) {
   const checkIn = useCheckIn()
   const undoCheckIn = useUndoCheckIn()
 
@@ -28,9 +32,17 @@ export function TodayHabits({ habits, isLoading }: TodayHabitsProps) {
     )
   }
 
+  if (isError && habits.length === 0) {
+    return (
+      <p className={styles.empty} role="status">
+        Não deu para carregar seus hábitos agora. Eles aparecem assim que a conexão voltar.
+      </p>
+    )
+  }
+
   if (habits.length === 0) {
     return (
-      <p className={styles.empty}>Nenhum hábito para hoje. <a href="/habits">Criar hábito →</a></p>
+      <p className={styles.empty}>Nenhum hábito para hoje. <Link to="/habits">Criar hábito →</Link></p>
     )
   }
 

@@ -16,7 +16,7 @@ const MODULES = [
 export function DashboardPage() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
-  const { data: habits = [], isLoading } = useHabits()
+  const { data: habits = [], isLoading, isError } = useHabits()
   const { data: stats } = useHabitStats()
   const { data: heatmapData = [] } = useHeatmap()
 
@@ -86,7 +86,7 @@ export function DashboardPage() {
               Ver todos →
             </button>
           </div>
-          <TodayHabits habits={habits} isLoading={isLoading} />
+          <TodayHabits habits={habits} isLoading={isLoading} isError={isError} />
         </motion.div>
 
         {/* ─── Modules ──────────────────────────── */}

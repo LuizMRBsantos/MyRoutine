@@ -15,6 +15,8 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { to: '/', icon: '⊞', label: 'Dashboard', short: 'Início' },
+  // O diário é a principal porta de entrada de dados: fica logo no começo.
+  { to: '/diario', icon: '✎', label: 'Diário' },
   { to: '/habits', icon: '✦', label: 'Hábitos' },
   { to: '/planner', icon: '📅', label: 'Planner' },
   { to: '/finance', icon: '◈', label: 'Finanças' },

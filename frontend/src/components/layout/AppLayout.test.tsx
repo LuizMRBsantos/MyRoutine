@@ -43,7 +43,7 @@ describe('AppLayout — navegação no celular', () => {
     renderAt('/')
     const bar = byLabel('navigation', 'Navegação principal')
     const labels = within(bar).getAllByRole('link', H).map(l => l.textContent)
-    expect(labels).toEqual(['⊞Início', '✦Hábitos', '📅Planner', '◈Finanças'])
+    expect(labels).toEqual(['⊞Início', '✎Diário', '✦Hábitos', '📅Planner'])
     expect(within(bar).getByRole('button', { name: /Mais/, ...H })).toHaveAttribute('aria-expanded', 'false')
   })
 
@@ -54,7 +54,7 @@ describe('AppLayout — navegação no celular', () => {
     await user.click(screen.getByRole('button', { name: /Mais/, ...H }))
     const sheet = byLabel('dialog', 'Mais opções')
     const items = within(sheet).getAllByRole('link', H).map(l => l.textContent)
-    expect(items).toEqual(['◉Saúde', '◆Estudos', '⚙Minha conta', '✉Acessos'])
+    expect(items).toEqual(['◈Finanças', '◉Saúde', '◆Estudos', '⚙Minha conta', '✉Acessos'])
     expect(within(sheet).getByRole('button', { name: /Sair/, ...H })).toBeInTheDocument()
   })
 

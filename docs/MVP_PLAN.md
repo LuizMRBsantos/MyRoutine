@@ -18,7 +18,7 @@ estar prontas.
 |---|---|---|
 | 0 | Consertar o que quebra com várias pessoas | ✅ concluída |
 | 1 | Convites e conta | ✅ concluída |
-| 2 | App no celular e no Mac (PWA, layout responsivo, Track Day web, revisão semanal) | ⏳ **próxima** |
+| 2 | App no celular e no Mac (PWA, layout responsivo, Track Day web, revisão semanal) | 🔄 1 de 4 peças |
 | 3 | IA (Claude): assistente e insights sob demanda | ⏳ |
 | 4 | Notificações (Web Push): uma consolidada por horário, no fuso de cada pessoa | ⏳ |
 | 5 | Colocar no ar na AWS. **Luiz faz, com o Claude ensinando passo a passo** | ⏳ |
@@ -119,6 +119,28 @@ do convite já prova que o e-mail é da pessoa.
 - Ainda não há tela para ler o registro. Por enquanto a consulta é via SQL, e
   cada pessoa vê o seu na exportação.
 
+### Etapa 2: app no celular e no Mac
+
+| Peça | Status |
+|---|---|
+| 1. Tela que cabe no celular | ✅ |
+| 2. App instalável (PWA): manifest, ícones, service worker | ⏳ **próxima** |
+| 3. Diário (Track Day) na web, portando o parser do app mobile | ⏳ |
+| 4. Ligar a revisão semanal (`WeeklyReview`, hoje "estacionada") | ⏳ |
+
+**Peça 1, layout responsivo** (`AppLayout`):
+- Acima de 1024px: menu lateral completo.
+- De 769px a 1024px: menu lateral só com ícones (72px). Os nomes ficam escondidos
+  só visualmente, para leitores de tela, e aparecem como dica ao passar o mouse.
+- Até 768px: barra inferior opaca (Início, Hábitos, Planner, Finanças e Mais), e o
+  "Mais" abre uma folha com o resto e o Sair. As áreas seguras do iPhone são
+  respeitadas (`viewport-fit=cover` + `env(safe-area-inset-*)`).
+- Verificado no navegador (Playwright com API simulada) em 393, 900 e 1440px:
+  nada vaza para os lados e o console não mostrou erros.
+- Corrigido: o script `type-check` rodava `tsc --noEmit` na raiz, que tem
+  `"files": []`, e **não checava nada**. Agora é `tsc -b`, e o erro que ele deixava
+  passar foi provado.
+
 ## Pendências anotadas (não esquecer)
 
 **Para a Etapa 5 (AWS e nginx):**
@@ -147,6 +169,8 @@ do convite já prova que o e-mail é da pessoa.
 - A renovação de sessão não tem timeout. Um logout numa aba só é percebido nas
   outras no próximo 401.
 - O modelo `ANTHROPIC_MODEL` padrão está desatualizado. Atualizar na Etapa 3.
+- O calendário do Dashboard mostra um texto de desenvolvimento como subtítulo
+  ("Visão Google Calendar com ponteiro de tempo ao vivo…"). Trocar no polimento.
 - GitLeaks: rodar sempre no projeto inteiro antes do push. Já houve dois alarmes
   falsos em testes, e os achados revisados ficam no `.gitleaksignore`.
 

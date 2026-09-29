@@ -1,3 +1,5 @@
 # Reviewed false positives. Each line is a finding fingerprint (commit:file:rule:line).
 # Fake JWT secret used only by backend tests; never used at runtime.
 699bb8a68dd1414b782af2b7a11d29fc8ea43433:backend/internal/service/auth_hardening_test.go:generic-api-key:17
+# Invalid timezone string ("Marte/Olympus") in a test, next to a test password.
+9d28715a1bff5e720820e96d5ca2c0d3773d6bda:backend/internal/service/account_integration_test.go:generic-api-key:218

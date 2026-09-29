@@ -215,7 +215,8 @@ func TestRegisterFallsBackOnInvalidTimezone(t *testing.T) {
 
 	email := uniqueEmail(t, "tz")
 	cleanupEmail(t, email)
-	res, err := newTestAuthService(t).Register(ctx, "Tz", email, "password123", "Marte/Olympus", mustInvite(t, email))
+	invalidZone := "Marte/Olympus"
+	res, err := newTestAuthService(t).Register(ctx, "Tz", email, "password123", invalidZone, mustInvite(t, email))
 	if err != nil {
 		t.Fatalf("register: %v", err)
 	}

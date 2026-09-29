@@ -208,6 +208,14 @@ h1, h2, h3, h4, h5, h6 {
   user-select: none;
 }
 
+/* Desativado precisa parecer desativado — antes, todo botão desativado do
+   app parecia clicável. */
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .btn-primary {
   background: var(--color-accent);
   color: #fff;

@@ -16,6 +16,7 @@ import (
 	_ "time/tzdata"
 
 	"github.com/myroutine/backend/internal/api"
+	"github.com/myroutine/backend/internal/buildinfo"
 	"github.com/myroutine/backend/internal/config"
 	"github.com/myroutine/backend/internal/db"
 	"github.com/myroutine/backend/internal/service"
@@ -24,7 +25,13 @@ import (
 
 func main() {
 	// ─── Logger ───────────────────────────────────────────────────
-	logger, err := zap.NewDevelopment()
+	// Production logs are JSON (CloudWatch can filter them by field);
+	// development keeps the human-friendly console format.
+	newLogger := zap.NewDevelopment
+	if os.Getenv("APP_ENV") == "production" {
+		newLogger = zap.NewProduction
+	}
+	logger, err := newLogger()
 	if err != nil {
 		log.Fatalf("failed to initialize logger: %v", err)
 	}
@@ -71,7 +78,7 @@ func main() {
 
 	// ─── Graceful Shutdown ────────────────────────────────────────
 	go func() {
-		logger.Info("🚀 MyRoutine API starting", zap.String("port", cfg.AppPort), zap.String("env", cfg.AppEnv))
+		logger.Info("🚀 MyRoutine API starting", zap.String("port", cfg.AppPort), zap.String("env", cfg.AppEnv), zap.String("version", buildinfo.Version))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Fatal("server error", zap.Error(err))
 		}

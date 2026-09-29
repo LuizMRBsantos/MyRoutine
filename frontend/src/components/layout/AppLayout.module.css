@@ -180,3 +180,148 @@
   min-height: 100vh;
   padding: var(--space-10) var(--space-8);
 }
+
+/* ─── Barra inferior e folha "Mais" (só no celular) ──────────── */
+.tabBar,
+.sheet,
+.sheetBackdrop {
+  display: none;
+}
+
+/* ─── Tablet / janela estreita: menu lateral só com ícones ───── */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .layout { --sidebar-width: 72px; }
+
+  .sidebar {
+    padding: var(--space-6) var(--space-3);
+    align-items: center;
+  }
+
+  .logo { justify-content: center; }
+  .navItem { justify-content: center; padding: var(--space-3); }
+
+  /* Escondido só visualmente: o leitor de tela continua lendo o nome. */
+  .logoText,
+  .navLabel,
+  .userMeta {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .sidebarFooter { flex-direction: column; }
+  .main { padding: var(--space-8) var(--space-6); }
+}
+
+/* ─── Celular: sem menu lateral, barra inferior + "Mais" ─────── */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+
+  .main {
+    margin-left: 0;
+    min-width: 0;
+    /* Áreas seguras do iPhone: a "ilha" em cima e a barra de gestos embaixo. */
+    padding:
+      calc(var(--space-6) + env(safe-area-inset-top))
+      calc(var(--space-4) + env(safe-area-inset-right))
+      calc(var(--tab-bar-height) + var(--space-6) + env(safe-area-inset-bottom))
+      calc(var(--space-4) + env(safe-area-inset-left));
+  }
+
+  .layout { --tab-bar-height: 64px; }
+
+  .tabBar {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    height: calc(var(--tab-bar-height) + env(safe-area-inset-bottom));
+    padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    /* Opaca, como a tab bar do iOS: o conteúdo rola por baixo e, com
+       transparência, o texto de trás competia com os rótulos das abas. */
+    background: var(--color-bg-elevated);
+    backdrop-filter: blur(var(--blur-lg));
+    -webkit-backdrop-filter: blur(var(--blur-lg));
+    border-top: 1px solid var(--color-border);
+  }
+
+  .tab {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: none;
+    border: none;
+    color: var(--color-text-tertiary);
+    text-decoration: none;
+    font: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .tabActive { color: var(--color-accent); }
+
+  .tabIcon { font-size: 1.25rem; line-height: 1; }
+
+  .tabLabel {
+    font-size: 0.6875rem; /* 11px, como a tab bar do iOS */
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }
+
+  .sheetBackdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 110;
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  .sheet {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    position: fixed;
+    left: var(--space-3);
+    right: var(--space-3);
+    bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom) + var(--space-2));
+    z-index: 120;
+    padding: var(--space-4);
+    background: color-mix(in srgb, var(--color-bg-elevated) 97%, transparent);
+    backdrop-filter: blur(var(--blur-lg));
+    -webkit-backdrop-filter: blur(var(--blur-lg));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg, 16px);
+    box-shadow: var(--shadow-md);
+  }
+
+  .sheetUser {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-2) var(--space-3);
+    margin-bottom: var(--space-2);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  /* Alvos de toque de pelo menos 44px (recomendação da Apple). */
+  .sheet .navItem { min-height: 44px; }
+
+  .sheetLogout {
+    background: none;
+    border: none;
+    font: inherit;
+    text-align: left;
+    width: 100%;
+  }
+}

@@ -191,3 +191,39 @@ func TestDeleteAccountErasesEverything(t *testing.T) {
 		t.Fatal("audit logs of the deleted user still carry IP / user agent")
 	}
 }
+
+func TestProfileTimezoneIsValidated(t *testing.T) {
+	pool := requireDB(t)
+	ctx := context.Background()
+	users := NewUserService(pool, testLogger)
+	userID := createTestUser(t)
+
+	bad := "Marte/Olympus"
+	if _, err := users.UpdateProfile(ctx, userID, UpdateProfileInput{Timezone: &bad}); !errors.Is(err, ErrInvalidTimezone) {
+		t.Fatalf("invalid timezone: err = %v, want ErrInvalidTimezone", err)
+	}
+	good := "Europe/Lisbon"
+	p, err := users.UpdateProfile(ctx, userID, UpdateProfileInput{Timezone: &good})
+	if err != nil || p.Timezone != good {
+		t.Fatalf("valid timezone: profile = %+v, err = %v", p, err)
+	}
+}
+
+func TestRegisterFallsBackOnInvalidTimezone(t *testing.T) {
+	pool := requireDB(t)
+	ctx := context.Background()
+
+	email := uniqueEmail(t, "tz")
+	cleanupEmail(t, email)
+	res, err := newTestAuthService(t).Register(ctx, "Tz", email, "password123", "Marte/Olympus", mustInvite(t, email))
+	if err != nil {
+		t.Fatalf("register: %v", err)
+	}
+	var tz string
+	if err := pool.QueryRow(ctx, "SELECT timezone FROM users WHERE id = $1", res.User.ID).Scan(&tz); err != nil {
+		t.Fatalf("read timezone: %v", err)
+	}
+	if tz != "America/Sao_Paulo" {
+		t.Fatalf("timezone = %q, want fallback America/Sao_Paulo", tz)
+	}
+}

@@ -57,7 +57,23 @@ func (s *UserService) GetProfile(ctx context.Context, userID string) (*ProfileDT
 	return &p, nil
 }
 
+// ErrInvalidTimezone: not an IANA zone name (e.g. "America/Sao_Paulo").
+var ErrInvalidTimezone = errors.New("invalid timezone")
+
+// validTimezone reports whether tz is a loadable IANA zone. "UTC" is valid;
+// the empty string ("Local") is not.
+func validTimezone(tz string) bool {
+	if tz == "" || tz == "Local" {
+		return false
+	}
+	_, err := time.LoadLocation(tz)
+	return err == nil
+}
+
 func (s *UserService) UpdateProfile(ctx context.Context, userID string, input UpdateProfileInput) (*ProfileDTO, error) {
+	if input.Timezone != nil && !validTimezone(*input.Timezone) {
+		return nil, ErrInvalidTimezone
+	}
 	var p ProfileDTO
 	err := s.db.QueryRow(ctx,
 		`UPDATE users SET

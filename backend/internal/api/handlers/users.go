@@ -63,6 +63,10 @@ func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 
 	profile, err := h.userSvc.UpdateProfile(r.Context(), userID, input)
 	if err != nil {
+		if errors.Is(err, service.ErrInvalidTimezone) {
+			respondError(w, http.StatusBadRequest, "invalid timezone")
+			return
+		}
 		if err == service.ErrNotFound {
 			respondError(w, http.StatusNotFound, "user not found")
 			return

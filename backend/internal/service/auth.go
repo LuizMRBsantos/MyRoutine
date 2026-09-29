@@ -61,6 +61,11 @@ type UserDTO struct {
 // how the first account on an empty database gets created) and become admin.
 func (s *AuthService) Register(ctx context.Context, name, email, password, timezone, inviteToken string) (*AuthResult, error) {
 	email = normalizeEmail(email)
+	// The browser sends its detected zone; anything unusable falls back to
+	// the product default instead of failing the sign-up.
+	if !validTimezone(timezone) {
+		timezone = "America/Sao_Paulo"
+	}
 	isAdmin := s.cfg.IsAdminEmail(email)
 	inviteToken = strings.TrimSpace(inviteToken)
 	if !isAdmin && inviteToken == "" {

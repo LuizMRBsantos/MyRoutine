@@ -57,6 +57,8 @@ export function ResetPasswordPage() {
     } catch (err: any) {
       if (err.response?.status === 404) {
         setState({ kind: 'invalid' })
+      } else if (err.response?.status === 429) {
+        setError('Muitas tentativas seguidas. Espere um minuto e tente de novo.')
       } else {
         setError('Não foi possível trocar a senha. Tente novamente.')
       }

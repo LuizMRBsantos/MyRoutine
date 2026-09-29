@@ -26,7 +26,14 @@ export function LoginPage() {
       )
       navigate('/')
     } catch (err: any) {
-      setError(err.response?.data?.error ?? 'Erro ao fazer login. Tente novamente.')
+      // Nunca mostrar a mensagem crua do servidor (em inglês).
+      const status = err.response?.status
+      setError(
+        status === 401 ? 'E-mail ou senha incorretos.'
+          : status === 429 ? 'Muitas tentativas seguidas. Espere um minuto e tente de novo.'
+          : !err.response ? 'Sem conexão. Verifique a internet e tente de novo.'
+          : 'Erro ao fazer login. Tente novamente.'
+      )
     } finally {
       setLoading(false)
     }

@@ -23,6 +23,7 @@ const ERROR_MESSAGES: Record<string, string> = {
     'O MyRoutine está em beta fechado: para criar uma conta você precisa de um convite.',
   'invite is invalid or expired':
     'Este convite não é mais válido. Peça um novo a quem te convidou.',
+  'too many requests': 'Muitas tentativas seguidas. Espere um minuto e tente de novo.',
 }
 
 export function RegisterPage() {

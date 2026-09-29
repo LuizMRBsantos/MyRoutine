@@ -10,9 +10,12 @@ export const queryClient = new QueryClient({
     },
   },
   // Toda mutation que falhar sem tratamento local vira um toast —
-  // nenhuma ação do usuário falha em silêncio.
+  // nenhuma ação do usuário falha em silêncio. Quem mostra a própria
+  // mensagem (traduzida) marca `meta: { handlesError: true }`, para não
+  // aparecerem dois avisos — um deles com o texto cru do servidor.
   mutationCache: new MutationCache({
-    onError: (error) => {
+    onError: (error, _variables, _context, mutation) => {
+      if (mutation.meta?.handlesError) return
       toast.error(apiErrorMessage(error, 'Algo deu errado. Tente novamente.'))
     },
   }),

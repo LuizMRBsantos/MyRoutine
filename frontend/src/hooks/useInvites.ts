@@ -32,6 +32,7 @@ export function useCreateInvite() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: invitesApi.create,
+    meta: { handlesError: true },
     onSuccess: () => qc.invalidateQueries({ queryKey: inviteKeys.all }),
   })
 }
@@ -45,5 +46,5 @@ export function useRevokeInvite() {
 }
 
 export function useCreatePasswordReset() {
-  return useMutation({ mutationFn: invitesApi.createReset })
+  return useMutation({ mutationFn: invitesApi.createReset, meta: { handlesError: true } })
 }

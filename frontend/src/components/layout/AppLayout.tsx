@@ -11,6 +11,7 @@ const navItems = [
   { to: '/finance', icon: '◈', label: 'Finanças' },
   { to: '/health', icon: '◉', label: 'Saúde' },
   { to: '/studies', icon: '◆', label: 'Estudos' },
+  { to: '/conta', icon: '⚙', label: 'Minha conta' },
 ]
 
 // Só aparece para administradores (convites e links de redefinição de senha).

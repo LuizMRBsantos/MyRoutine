@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuthStore } from '@/store/authStore'
 import api from '@/services/api'
+import { browserTimezone } from '@/types/account'
 import styles from './AuthPages.module.css'
 
 // O cadastro é só por convite. O link do convite traz ?convite=<código>:
@@ -67,6 +68,7 @@ export function RegisterPage() {
     try {
       const { data } = await api.post('/auth/register', {
         ...form,
+        timezone: browserTimezone(),
         invite_token: inviteToken || undefined,
       })
       setAuth(

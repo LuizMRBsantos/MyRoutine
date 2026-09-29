@@ -222,14 +222,21 @@ do convite já prova que o e-mail é da pessoa.
 
 ### Etapa 5: AWS (em andamento)
 
-**Decisões de 29/09:**
-- conta AWS **nova**, no plano gratuito com créditos;
-- domínio **.com.br** comprado no Registro.br e delegado ao Route 53;
-- topologia **separada**:
-  - S3 + CloudFront para as telas;
-  - EC2 ARM (Graviton) com Docker e Caddy para a API;
-  - RDS Postgres privado;
-  - Parameter Store para as senhas.
+**Situação (29/09):** conta AWS criada, com MFA na root e orçamento de alerta de
+US$ 10 por mês. A conta mostrou **zero créditos**: falta confirmar se ela ficou no
+plano "Paid". A topologia separada (RDS) sairia a ~US$ 25–30 por mês sem créditos,
+caro demais para 10 pessoas. **A hospedagem está em avaliação pelo Luiz.**
+Nenhum recurso foi criado, então não há custo.
+
+| Opção | Custo por mês (aprox.) | Resumo |
+|---|---|---|
+| A) Serverless | ~US$ 1 | S3/CloudFront + API em Lambda + Postgres gratuito no Neon (fora da AWS). Exige adaptar o backend; cold start de ~1s |
+| B) AWS Lightsail | ~US$ 7 | Um servidor de preço fixo, com IP incluso, rodando o `docker compose` |
+| C) Um EC2 só (recomendada) | ~US$ 10–11 | EC2 ARM com `docker compose`, Caddy (HTTPS), backup diário no S3 e Route 53. Ensina o kit clássico da AWS |
+| ~~Separada com RDS~~ | ~~US$ 25–30~~ | Descartada pelo custo |
+
+Valores de referência para `us-east-1`. Em `sa-east-1` fica ~30–50% mais caro.
+O domínio `.com.br` custa ~R$ 40 por ano, em qualquer opção.
 
 **Parte A, preparar o projeto** (o Claude faz):
 - ✅ Imagem multi-arquitetura (`TARGETARCH`, arm64 para Graviton) e versão real no

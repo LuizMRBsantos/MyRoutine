@@ -71,6 +71,11 @@ func (s *UserService) Export(ctx context.Context, userID string) (map[string]any
 		}
 		out[table] = rows
 	}
+
+	// Recorded after reading, so the export does not contain its own row.
+	if err := recordAudit(ctx, s.db, auditEvent{UserID: userID, Action: AuditAccountExported}); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -105,6 +110,11 @@ func (s *UserService) DeleteAccount(ctx context.Context, userID, password string
 		userID,
 	); err != nil {
 		return fmt.Errorf("anonymizing audit logs: %w", err)
+	}
+	// "An account was deleted at time X" survives, with no owner (the DELETE
+	// below sets user_id NULL), no IP and no user agent.
+	if err := recordAudit(ctx, tx, auditEvent{UserID: userID, Action: AuditAccountDeleted, Anonymous: true}); err != nil {
+		return err
 	}
 	if _, err := tx.Exec(ctx, "DELETE FROM users WHERE id = $1", userID); err != nil {
 		return fmt.Errorf("deleting user: %w", err)

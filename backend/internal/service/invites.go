@@ -80,8 +80,14 @@ func (s *InviteService) Create(ctx context.Context, adminID, email string) (*Cre
 	}
 	token := hex.EncodeToString(raw)
 
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("beginning invite: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
 	inv := CreatedInvite{Email: email, Token: token}
-	err := s.db.QueryRow(ctx,
+	err = tx.QueryRow(ctx,
 		`INSERT INTO invites (token_hash, email, invited_by, expires_at)
 		 VALUES ($1, $2, $3, $4)
 		 RETURNING id::text, expires_at`,
@@ -89,6 +95,15 @@ func (s *InviteService) Create(ctx context.Context, adminID, email string) (*Cre
 	).Scan(&inv.ID, &inv.ExpiresAt)
 	if err != nil {
 		return nil, fmt.Errorf("creating invite: %w", err)
+	}
+	if err := recordAudit(ctx, tx, auditEvent{
+		UserID: adminID, Action: AuditInviteCreated, EntityType: "invite", EntityID: inv.ID,
+		Metadata: map[string]any{"email": email},
+	}); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("committing invite: %w", err)
 	}
 	return &inv, nil
 }
@@ -121,22 +136,36 @@ func (s *InviteService) List(ctx context.Context) ([]InviteDTO, error) {
 }
 
 // Revoke cancels a pending invite so its link stops working. Used, revoked or
-// unknown invites return ErrNotFound.
-func (s *InviteService) Revoke(ctx context.Context, id string) error {
-	tag, err := s.db.Exec(ctx,
+// unknown invites return ErrNotFound. adminID is who cancelled it (audit).
+func (s *InviteService) Revoke(ctx context.Context, adminID, id string) error {
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("beginning revoke: %w", err)
+	}
+	defer tx.Rollback(ctx) //nolint:errcheck
+
+	var email string
+	err = tx.QueryRow(ctx,
 		`UPDATE invites SET revoked_at = NOW()
-		 WHERE id = $1 AND used_at IS NULL AND revoked_at IS NULL`,
+		 WHERE id = $1 AND used_at IS NULL AND revoked_at IS NULL
+		 RETURNING email`,
 		id,
-	)
+	).Scan(&email)
 	if err != nil {
 		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "22P02" { // malformed uuid
+		if errors.Is(err, pgx.ErrNoRows) || (errors.As(err, &pgErr) && pgErr.Code == "22P02") { // malformed uuid
 			return ErrNotFound
 		}
 		return fmt.Errorf("revoking invite: %w", err)
 	}
-	if tag.RowsAffected() == 0 {
-		return ErrNotFound
+	if err := recordAudit(ctx, tx, auditEvent{
+		UserID: adminID, Action: AuditInviteRevoked, EntityType: "invite", EntityID: id,
+		Metadata: map[string]any{"email": email},
+	}); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("committing revoke: %w", err)
 	}
 	return nil
 }

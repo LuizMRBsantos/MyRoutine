@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -182,6 +183,37 @@ func RequireAdmin() func(http.Handler) http.Handler {
 				return
 			}
 			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// RequestMeta records the client IP and user agent in the context (via
+// appctx) so services can write them to the audit log. It must run after
+// ClientIPFromHeader: the IP comes from the trusted X-Real-IP set by nginx,
+// falling back to the TCP peer for direct requests. Anything that is not a
+// valid IP is dropped rather than stored.
+func RequestMeta() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ip := middleware.GetClientIP(r.Context())
+			if ip == "" {
+				if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+					ip = host
+				} else {
+					ip = r.RemoteAddr
+				}
+			}
+			if net.ParseIP(ip) == nil {
+				ip = ""
+			}
+
+			ua := r.UserAgent()
+			if len(ua) > 512 {
+				ua = ua[:512]
+			}
+
+			ctx := appctx.WithRequestMeta(r.Context(), appctx.RequestMeta{IP: ip, UserAgent: ua})
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }

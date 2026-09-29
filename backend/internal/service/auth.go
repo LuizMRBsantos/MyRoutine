@@ -28,6 +28,12 @@ var (
 	ErrNotFound           = errors.New("not found")
 )
 
+// dummyPasswordHash is a real bcrypt hash (same cost as user passwords)
+// compared against when the email has no account, so a failed login takes
+// the same time whether or not the account exists. A malformed constant here
+// would make bcrypt fail instantly and leak which emails are registered.
+var dummyPasswordHash, _ = bcrypt.GenerateFromPassword([]byte("timing-equalizer-not-a-password"), 12)
+
 // AuthService handles authentication business logic.
 type AuthService struct {
 	cfg    *config.Config
@@ -142,6 +148,16 @@ func (s *AuthService) Register(ctx context.Context, name, email, password, timez
 		}
 	}
 
+	via := "invite"
+	if isAdmin {
+		via = "admin_email"
+	}
+	if err := recordAudit(ctx, tx, auditEvent{
+		UserID: user.ID.String(), Action: AuditRegister, Metadata: map[string]any{"via": via},
+	}); err != nil {
+		return nil, err
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return nil, fmt.Errorf("committing registration: %w", err)
 	}
@@ -182,8 +198,10 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*AuthR
 	).Scan(&user.ID, &user.Name, &user.Email, &user.PasswordHash, &user.IsAdmin, &user.CreatedAt)
 
 	if errors.Is(err, pgx.ErrNoRows) {
-		// Constant-time comparison even when user not found (prevents timing attacks)
-		bcrypt.CompareHashAndPassword([]byte("$2a$12$dummy"), []byte(password)) //nolint:errcheck
+		// Same bcrypt cost as a real check, so response time does not reveal
+		// whether the email has an account.
+		bcrypt.CompareHashAndPassword(dummyPasswordHash, []byte(password)) //nolint:errcheck
+		s.auditBestEffort(ctx, auditEvent{Action: AuditLoginFailed, Metadata: map[string]any{"email": email}})
 		return nil, ErrInvalidCredentials
 	}
 	if err != nil {
@@ -191,9 +209,11 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*AuthR
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		s.auditBestEffort(ctx, auditEvent{UserID: user.ID.String(), Action: AuditLoginFailed})
 		return nil, ErrInvalidCredentials
 	}
 
+	s.auditBestEffort(ctx, auditEvent{UserID: user.ID.String(), Action: AuditLogin})
 	return s.generateTokens(ctx, user.ID.String(), user.Name, user.Email, user.IsAdmin, user.CreatedAt)
 }
 
@@ -269,6 +289,7 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (*AuthRe
 func (s *AuthService) handleRefreshReuse(ctx context.Context, userID uuid.UUID) error {
 	s.logger.Warn("refresh token reuse detected; revoking all sessions",
 		zap.String("user_id", userID.String()))
+	s.auditBestEffort(ctx, auditEvent{UserID: userID.String(), Action: AuditSessionReuseDetected})
 	if err := revokeAllRefreshTokens(ctx, s.db, userID.String()); err != nil {
 		return fmt.Errorf("revoking tokens after reuse: %w", err)
 	}
@@ -367,4 +388,13 @@ func isUniqueViolation(err error) bool {
 func hashToken(token string) string {
 	h := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(h[:])
+}
+
+// auditBestEffort records an audit row but never fails the caller: a broken
+// audit log must not lock everyone out of logging in. Failures go to the
+// server log instead.
+func (s *AuthService) auditBestEffort(ctx context.Context, ev auditEvent) {
+	if err := recordAudit(ctx, s.db, ev); err != nil {
+		s.logger.Error("audit log write failed", zap.String("action", ev.Action), zap.Error(err))
+	}
 }

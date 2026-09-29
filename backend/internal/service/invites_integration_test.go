@@ -138,7 +138,7 @@ func TestRevokedInviteIsRefused(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create invite: %v", err)
 	}
-	if err := invites.Revoke(ctx, inv.ID); err != nil {
+	if err := invites.Revoke(ctx, adminID, inv.ID); err != nil {
 		t.Fatalf("revoke: %v", err)
 	}
 
@@ -148,10 +148,10 @@ func TestRevokedInviteIsRefused(t *testing.T) {
 	if got := inviteStatus(t, invites, inv.ID); got != "revoked" {
 		t.Fatalf("status = %q, want revoked", got)
 	}
-	if err := invites.Revoke(ctx, inv.ID); !errors.Is(err, ErrNotFound) {
+	if err := invites.Revoke(ctx, adminID, inv.ID); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("second revoke: err = %v, want ErrNotFound", err)
 	}
-	if err := invites.Revoke(ctx, "not-a-uuid"); !errors.Is(err, ErrNotFound) {
+	if err := invites.Revoke(ctx, adminID, "not-a-uuid"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("malformed id: err = %v, want ErrNotFound", err)
 	}
 }

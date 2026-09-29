@@ -85,6 +85,14 @@ func (s *PasswordResetService) Create(ctx context.Context, adminID, email string
 	}
 	token := hex.EncodeToString(raw)
 
+	// Recorded on the affected person's own history (it comes with their LGPD
+	// export): the admin can open any account this way, so it must be visible.
+	if err := recordAudit(ctx, tx, auditEvent{
+		UserID: userID, Action: AuditResetLinkCreated, Metadata: map[string]any{"by_admin": adminID},
+	}); err != nil {
+		return nil, err
+	}
+
 	reset := CreatedReset{Email: storedEmail, Token: token}
 	if err := tx.QueryRow(ctx,
 		`INSERT INTO password_resets (user_id, token_hash, created_by, expires_at)
@@ -169,6 +177,11 @@ func (s *PasswordResetService) Reset(ctx context.Context, token, newPassword str
 	// Whoever held the old password (or a stolen session) is logged out.
 	if err := revokeAllRefreshTokens(ctx, tx, userID); err != nil {
 		return fmt.Errorf("revoking sessions: %w", err)
+	}
+	if err := recordAudit(ctx, tx, auditEvent{
+		UserID: userID, Action: AuditPasswordReset, Metadata: map[string]any{"via": "admin_link"},
+	}); err != nil {
+		return err
 	}
 
 	if err := tx.Commit(ctx); err != nil {

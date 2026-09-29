@@ -65,7 +65,7 @@ func (h *InviteHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /admin/invites/{id}
 func (h *InviteHandler) Revoke(w http.ResponseWriter, r *http.Request) {
-	if err := h.inviteSvc.Revoke(r.Context(), chi.URLParam(r, "id")); err != nil {
+	if err := h.inviteSvc.Revoke(r.Context(), middleware.GetUserID(r.Context()), chi.URLParam(r, "id")); err != nil {
 		if errors.Is(err, service.ErrNotFound) {
 			respondError(w, http.StatusNotFound, "invite not found")
 			return

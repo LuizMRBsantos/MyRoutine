@@ -132,6 +132,9 @@ func (s *UserService) ChangePassword(ctx context.Context, userID, currentPasswor
 	if err := revokeAllRefreshTokens(ctx, tx, userID); err != nil {
 		return fmt.Errorf("revoking refresh tokens: %w", err)
 	}
+	if err := recordAudit(ctx, tx, auditEvent{UserID: userID, Action: AuditPasswordChanged}); err != nil {
+		return err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("committing password change: %w", err)
 	}

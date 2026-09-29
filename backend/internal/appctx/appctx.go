@@ -16,6 +16,7 @@ type contextKey string
 const (
 	timezoneKey contextKey = "timezone"
 	adminKey    contextKey = "is_admin"
+	requestKey  contextKey = "request_meta"
 )
 
 // defaultTimezone is the app-wide fallback matching the users.timezone column
@@ -76,4 +77,23 @@ func WithAdmin(ctx context.Context, isAdmin bool) context.Context {
 func IsAdmin(ctx context.Context) bool {
 	v, _ := ctx.Value(adminKey).(bool)
 	return v
+}
+
+// RequestMeta identifies where a request came from, for the audit log.
+// IP is empty when unknown or unparsable (the column is INET).
+type RequestMeta struct {
+	IP        string
+	UserAgent string
+}
+
+// WithRequestMeta stores the request's client IP and user agent.
+func WithRequestMeta(ctx context.Context, meta RequestMeta) context.Context {
+	return context.WithValue(ctx, requestKey, meta)
+}
+
+// RequestMetaFrom returns the stored request meta (zero value if absent,
+// e.g. in tests or background jobs).
+func RequestMetaFrom(ctx context.Context) RequestMeta {
+	m, _ := ctx.Value(requestKey).(RequestMeta)
+	return m
 }

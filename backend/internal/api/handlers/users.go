@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
@@ -94,7 +96,9 @@ func (h *UserHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch err {
 		case service.ErrInvalidCredentials:
-			respondError(w, http.StatusUnauthorized, "current password is incorrect")
+			// 403, not 401: for the frontend a 401 means "session expired" and
+			// triggers a session refresh; this is a refused action instead.
+			respondError(w, http.StatusForbidden, "current password is incorrect")
 		case service.ErrNotFound:
 			respondError(w, http.StatusNotFound, "user not found")
 		default:
@@ -105,4 +109,49 @@ func (h *UserHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respondJSON(w, http.StatusOK, map[string]string{"message": "password updated"})
+}
+
+// GET /me/export — LGPD: every piece of the user's data as a JSON download.
+func (h *UserHandler) Export(w http.ResponseWriter, r *http.Request) {
+	export, err := h.userSvc.Export(r.Context(), middleware.GetUserID(r.Context()))
+	if err != nil {
+		if errors.Is(err, service.ErrNotFound) {
+			respondError(w, http.StatusNotFound, "user not found")
+			return
+		}
+		h.logger.Error("export account", zap.Error(err))
+		respondError(w, http.StatusInternalServerError, "failed to export data")
+		return
+	}
+
+	filename := "myroutine-dados-" + time.Now().Format("2006-01-02") + ".json"
+	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+	w.Header().Set("Cache-Control", "no-store")
+	respondJSON(w, http.StatusOK, export)
+}
+
+// DELETE /me  {"password": "..."} — LGPD: erase the account for real.
+func (h *UserHandler) DeleteMe(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		respondError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	err := h.userSvc.DeleteAccount(r.Context(), middleware.GetUserID(r.Context()), body.Password)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidCredentials):
+			respondError(w, http.StatusForbidden, "password is incorrect")
+		case errors.Is(err, service.ErrNotFound):
+			respondError(w, http.StatusNotFound, "user not found")
+		default:
+			h.logger.Error("delete account", zap.Error(err))
+			respondError(w, http.StatusInternalServerError, "failed to delete account")
+		}
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

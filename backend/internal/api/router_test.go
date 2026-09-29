@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -616,5 +617,57 @@ func TestPasswordResetOverHTTP(t *testing.T) {
 	res, _ = anon.do(http.MethodPost, "/api/v1/auth/password-resets/"+reset.Token, map[string]string{"password": "outra-senha-33"})
 	if res.StatusCode != http.StatusNotFound {
 		t.Fatalf("reused link status = %d, want 404", res.StatusCode)
+	}
+}
+
+// LGPD over HTTP: download everything, then erase the account; a wrong
+// password is refused with 403 (never 401, which the web app reads as an
+// expired session).
+func TestAccountExportAndDeleteOverHTTP(t *testing.T) {
+	c := newAuthedClient(t)
+
+	res, raw := c.do(http.MethodPost, "/api/v1/habits", map[string]any{"name": "Ler"})
+	if res.StatusCode != http.StatusCreated {
+		t.Fatalf("create habit status = %d, body = %s", res.StatusCode, raw)
+	}
+
+	res, raw = c.do(http.MethodGet, "/api/v1/me/export", nil)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("export status = %d, body = %s", res.StatusCode, raw)
+	}
+	if cd := res.Header.Get("Content-Disposition"); !strings.Contains(cd, "attachment") {
+		t.Fatalf("export Content-Disposition = %q, want an attachment", cd)
+	}
+	var export struct {
+		Habits []struct {
+			Name string `json:"name"`
+		} `json:"habits"`
+	}
+	c.decode(raw, &export)
+	if len(export.Habits) != 1 || export.Habits[0].Name != "Ler" {
+		t.Fatalf("exported habits = %+v, want one 'Ler'", export.Habits)
+	}
+
+	res, _ = c.do(http.MethodPut, "/api/v1/me/password", map[string]string{
+		"current_password": "errada-123", "new_password": "nova-senha-123",
+	})
+	if res.StatusCode != http.StatusForbidden {
+		t.Fatalf("change password with wrong current = %d, want 403", res.StatusCode)
+	}
+
+	res, _ = c.do(http.MethodDelete, "/api/v1/me", map[string]string{"password": "errada-123"})
+	if res.StatusCode != http.StatusForbidden {
+		t.Fatalf("delete with wrong password = %d, want 403", res.StatusCode)
+	}
+
+	res, raw = c.do(http.MethodDelete, "/api/v1/me", map[string]string{"password": "testpassword123"})
+	if res.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete status = %d, body = %s", res.StatusCode, raw)
+	}
+
+	// The still-unexpired access token no longer opens anything.
+	res, _ = c.do(http.MethodGet, "/api/v1/habits", nil)
+	if res.StatusCode != http.StatusForbidden {
+		t.Fatalf("access after deletion = %d, want 403", res.StatusCode)
 	}
 }

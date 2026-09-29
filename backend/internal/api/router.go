@@ -98,6 +98,8 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 				r.Get("/", userHandler.Me)
 				r.Patch("/", userHandler.UpdateMe)
 				r.Put("/password", userHandler.ChangePassword)
+				r.Get("/export", userHandler.Export)
+				r.Delete("/", userHandler.DeleteMe)
 			})
 
 			// Habits

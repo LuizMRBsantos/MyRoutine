@@ -220,12 +220,48 @@ do convite já prova que o e-mail é da pessoa.
 - Os testes do frontend garantem as regras do produto: nenhum número de dias e
   nenhum texto de comemoração.
 
+### Etapa 5: AWS (em andamento)
+
+**Decisões de 29/09:**
+- conta AWS **nova**, no plano gratuito com créditos;
+- domínio **.com.br** comprado no Registro.br e delegado ao Route 53;
+- topologia **separada**:
+  - S3 + CloudFront para as telas;
+  - EC2 ARM (Graviton) com Docker e Caddy para a API;
+  - RDS Postgres privado;
+  - Parameter Store para as senhas.
+
+**Parte A, preparar o projeto** (o Claude faz):
+- ✅ Imagem multi-arquitetura (`TARGETARCH`, arm64 para Graviton) e versão real no
+  `/health` e no log de início (`internal/buildinfo`).
+- ✅ Limite de tentativas **no app** (`AUTH_RATE_LIMIT_PER_MINUTE`, padrão 10 por
+  minuto por IP) nas rotas `/auth`, respondendo 429 com Retry-After. Na AWS não há
+  nginx na frente.
+- ✅ IP real do cliente por cabeçalho confiável configurável (`TRUSTED_IP_HEADER`):
+  `X-Real-IP` no ambiente local e `CloudFront-Viewer-Address` na AWS. **Só é seguro
+  se o security group do EC2 aceitar apenas o CloudFront.**
+- ✅ A web não desloga por 429 nem por 5xx (só por uma recusa real da sessão), e as
+  mensagens de login, cadastro e redefinição estão em português.
+- ✅ Logs em JSON quando `APP_ENV=production`.
+- ⏳ **Fica para a Parte B**, porque depende do domínio e da região:
+  - `docker-compose` de produção, com a API e o Caddy;
+  - Caddyfile;
+  - script que lê os segredos do Parameter Store;
+  - certificado da CA do RDS (`sslmode=verify-full`);
+  - workflow de deploy (ECR, SSM, S3 e invalidação do CloudFront).
+
+**Parte B, a AWS** (o Luiz faz, o Claude ensina):
+1. ⏳ Criar a conta, com MFA na root.
+2. Alerta de gastos (Budget) e um usuário do dia a dia (sem usar a root).
+3. Comprar o domínio e criar a zona no Route 53.
+4. Escolher a região.
+5. RDS, EC2, S3/CloudFront, certificados (ACM) e deploy.
+
 ## Pendências anotadas (não esquecer)
 
 **Para a Etapa 5 (AWS e nginx):**
-- O rate limit de login no nginx aponta para `/api/auth/`, mas as rotas reais são
-  `/api/v1/auth/`, então o limite mais rígido nunca é aplicado. Corrigir ao
-  configurar o edge.
+- ~~O rate limit de login no nginx aponta para o endereço errado.~~ Resolvido: o
+  limite agora fica no app, e o nginx local foi corrigido.
 - HSTS só é enviado quando `r.TLS != nil`, o que nunca acontece atrás de um proxy
   TLS. Confiar no `X-Forwarded-Proto`.
 - Remover as credenciais padrão do compose (`changeme_in_production` e o

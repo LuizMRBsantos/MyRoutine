@@ -17,10 +17,17 @@ let active = 0
 let maxActive = 0
 // Sem internet / servidor fora: o pedido falha sem resposta nenhuma.
 let networkDown = false
+// O servidor responde, mas com erro que não diz nada sobre a sessão.
+let serverStatus: number | null = null
 
 const adapter: AxiosAdapter = async (config) => {
   const body = JSON.parse(String(config.data ?? '{}'))
   if (networkDown) throw new AxiosError('Network Error', 'ERR_NETWORK', config)
+  if (serverStatus) {
+    throw new AxiosError(`status ${serverStatus}`, 'ERR_BAD_RESPONSE', config, null, {
+      status: serverStatus, statusText: '', data: {}, headers: {}, config,
+    })
+  }
   sentTokens.push(body.refresh_token)
   active++
   maxActive = Math.max(maxActive, active)
@@ -89,6 +96,7 @@ beforeEach(() => {
   rotation = 0
   refreshGate = null
   networkDown = false
+  serverStatus = null
   sentTokens.length = 0
   active = 0
   maxActive = 0
@@ -225,5 +233,17 @@ describe('refreshSession — sem internet', () => {
     networkDown = false
     await expect(tab.refreshSession()).resolves.toBe('a1')
     expect(tab.useAuthStore.getState().isAuthenticated).toBe(true)
+  })
+})
+
+describe('refreshSession — servidor ocupado não é sessão inválida', () => {
+  it.each([429, 500, 503])('com %i, mantém a sessão', async (status) => {
+    setPersisted('r0')
+    const tab = await openTab({ accessToken: null, refreshToken: 'r0' })
+
+    serverStatus = status
+    await expect(tab.refreshSession()).rejects.toThrow()
+    expect(tab.useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(persistedRefreshToken()).toBe('r0')
   })
 })

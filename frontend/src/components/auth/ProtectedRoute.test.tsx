@@ -103,7 +103,11 @@ describe('ProtectedRoute', () => {
       user: { id: '1', name: 'Luiz', email: 'l@x.com', createdAt: '' },
       isAuthenticated: true,
     })
-    mockPost.mockRejectedValue(new Error('401'))
+    // Recusa real do servidor (resposta 401) — não um erro de rede, que
+    // mantém a sessão (ver refreshSession).
+    mockPost.mockRejectedValue(new AxiosError('status 401', 'ERR_BAD_REQUEST', undefined, null, {
+      status: 401, statusText: '', data: {}, headers: {}, config: {} as never,
+    }))
 
     renderGuarded()
     await waitFor(() => expect(screen.getByText('tela de login')).toBeInTheDocument())

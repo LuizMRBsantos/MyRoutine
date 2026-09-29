@@ -64,11 +64,12 @@ async function doRefresh(): Promise<string> {
     )
     return data.access_token as string
   } catch (err) {
-    // Sem resposta do servidor (sem internet, servidor fora do ar), a sessão
-    // pode estar perfeitamente válida. Deslogar aqui trancaria a pessoa fora
-    // do app instalado — e sem rede ela nem conseguiria entrar de novo. Só uma
-    // recusa de verdade do servidor encerra a sessão.
-    if (axios.isAxiosError(err) && !err.response) throw err
+    // Só uma recusa da SESSÃO (400/401/403) encerra o login. Sem resposta
+    // (sem internet), limite de tentativas (429) ou erro do servidor (5xx) não
+    // dizem nada sobre a sessão: deslogar trancaria a pessoa fora do app — e,
+    // sem rede, ela nem conseguiria entrar de novo.
+    const status = axios.isAxiosError(err) ? err.response?.status : undefined
+    if (status === undefined || status === 429 || status >= 500) throw err
     // Dentro da Promise compartilhada: roda uma vez só, não uma por request.
     logout()
     throw err

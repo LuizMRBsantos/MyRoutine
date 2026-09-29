@@ -18,7 +18,7 @@ estar prontas.
 |---|---|---|
 | 0 | Consertar o que quebra com várias pessoas | ✅ concluída |
 | 1 | Convites e conta | ✅ concluída |
-| 2 | App no celular e no Mac (PWA, layout responsivo, Track Day web, revisão semanal) | 🔄 1 de 4 peças |
+| 2 | App no celular e no Mac (PWA, layout responsivo, Track Day web, revisão semanal) | 🔄 2 de 4 peças |
 | 3 | IA (Claude): assistente e insights sob demanda | ⏳ |
 | 4 | Notificações (Web Push): uma consolidada por horário, no fuso de cada pessoa | ⏳ |
 | 5 | Colocar no ar na AWS. **Luiz faz, com o Claude ensinando passo a passo** | ⏳ |
@@ -124,8 +124,8 @@ do convite já prova que o e-mail é da pessoa.
 | Peça | Status |
 |---|---|
 | 1. Tela que cabe no celular | ✅ |
-| 2. App instalável (PWA): manifest, ícones, service worker | ⏳ **próxima** |
-| 3. Diário (Track Day) na web, portando o parser do app mobile | ⏳ |
+| 2. App instalável (PWA): manifest, ícones, service worker | ✅ |
+| 3. Diário (Track Day) na web, portando o parser do app mobile | ⏳ **próxima** |
 | 4. Ligar a revisão semanal (`WeeklyReview`, hoje "estacionada") | ⏳ |
 
 **Peça 1, layout responsivo** (`AppLayout`):
@@ -140,6 +140,28 @@ do convite já prova que o e-mail é da pessoa.
 - Corrigido: o script `type-check` rodava `tsc --noEmit` na raiz, que tem
   `"files": []`, e **não checava nada**. Agora é `tsc -b`, e o erro que ele deixava
   passar foi provado.
+
+**Peça 2, PWA** (`vite-plugin-pwa`, estratégia `injectManifest`, `src/sw/sw.ts`):
+- O cache guarda **só arquivos estáticos**. Nenhuma resposta da API é guardada, e
+  as navegações para `/api`, `/health` e `/metrics` nunca usam o cache.
+- Manifesto em modo standalone, com ícones 192/512, maskable e o
+  `apple-touch-icon` (180). A fonte do ícone é `public/icons/icon.svg`. Há metas
+  de iOS: nome, barra de status translúcida e `theme-color` para claro e escuro.
+- `PwaStatus` mostra a faixa "sem internet" e o aviso "Nova versão ·
+  Atualizar/Depois" (`registerType: 'prompt'`). A troca de versão nunca acontece
+  sozinha.
+- `frontend/nginx.conf`: `sw.js` e `manifest.webmanifest` sem cache.
+- Verificado num Chromium real (build de produção): o SW fica ativo, o manifesto
+  e os ícones respondem 200, e **sem internet o app abre logado**.
+- Corrigido graças a essa verificação:
+  - Abrir o app sem rede **deslogava a pessoa**. A renovação da sessão só desloga
+    agora quando o servidor recusa, e nunca por falta de rede.
+  - O Dashboard mostrava "Nenhum hábito" quando a busca falhava. Agora diz que
+    não deu para carregar. O link "Criar hábito" não recarrega mais o app.
+- ⚠️ No iPhone de verdade, o service worker exige **HTTPS**. O teste real de
+  "Adicionar à Tela de Início" fica para depois da Etapa 5 (AWS com domínio).
+- `npm audit`: 0 vulnerabilidades. O `undici` do jsdom, usado só nos testes, foi
+  atualizado.
 
 ## Pendências anotadas (não esquecer)
 

@@ -1,6 +1,6 @@
 # MyRoutine — Plano do beta fechado (MVP)
 
-> Documento vivo. Última atualização: 29/09/2026 (tarde).
+> Documento vivo. Última atualização: 29/09/2026 (Etapa 1 concluída).
 > Substitui o roteiro de `docs/PROJECT_CONTEXT.md` (de 28/06, desatualizado).
 
 ## Objetivo
@@ -17,8 +17,8 @@ estar prontas.
 | # | Etapa | Status |
 |---|---|---|
 | 0 | Consertar o que quebra com várias pessoas | ✅ concluída |
-| 1 | Convites e conta | 🔄 3 de 4 peças |
-| 2 | App no celular e no Mac (PWA, layout responsivo, Track Day web, revisão semanal) | ⏳ |
+| 1 | Convites e conta | ✅ concluída |
+| 2 | App no celular e no Mac (PWA, layout responsivo, Track Day web, revisão semanal) | ⏳ **próxima** |
 | 3 | IA (Claude): assistente e insights sob demanda | ⏳ |
 | 4 | Notificações (Web Push): uma consolidada por horário, no fuso de cada pessoa | ⏳ |
 | 5 | Colocar no ar na AWS. **Luiz faz, com o Claude ensinando passo a passo** | ⏳ |
@@ -55,7 +55,7 @@ do convite já prova que o e-mail é da pessoa.
 | 1. Convites por link | ✅ |
 | 2. "Esqueci minha senha" por link | ✅ |
 | 3. Exportar e apagar a conta (LGPD), mais uma tela "Minha conta" | ✅ |
-| 4. Registro de ações sensíveis (`audit_logs`) | ⏳ **próxima** |
+| 4. Registro de ações sensíveis (`audit_logs`) | ✅ |
 
 **Peça 1, convites** (migração `000011`):
 - Cadastro só com convite. A exceção são os e-mails em `ADMIN_EMAILS`, que se
@@ -99,9 +99,25 @@ do convite já prova que o e-mail é da pessoa.
     em inglês. Agora uma mutation pode marcar `meta: { handlesError: true }`.
   - A lista de fusos do navegador não trazia "UTC".
 
-**Peça 4, próxima:** gravar em `audit_logs` login, falha de login, troca e
-redefinição de senha, geração de convite e de link de redefinição (admin),
-exportação e exclusão de conta.
+**Peça 4, registro de ações** (`audit_logs`, `internal/service/audit.go`):
+- O que é registrado:
+  - `auth.login`, `auth.login_failed`, `auth.register`, `auth.password_changed`,
+    `auth.password_reset` e `auth.session_reuse_detected`;
+  - `admin.invite_created`, `admin.invite_revoked` e
+    `admin.password_reset_link_created`;
+  - `account.exported` e `account.deleted`.
+- O IP (o `X-Real-IP` confiável, com fallback para o peer) e o navegador vêm do
+  middleware `RequestMeta`.
+- As ações de admin e de conta gravam **na mesma transação** (tudo ou nada). O
+  login é "melhor esforço": se a gravação falhar, a pessoa entra mesmo assim e o
+  erro vai para o log do servidor.
+- O link de nova senha é gravado **no histórico da pessoa afetada**, com
+  `by_admin`, e aparece na exportação LGPD dela.
+- `account.deleted` fica sem dono, sem IP e sem navegador.
+- Corrigido no caminho: a proteção contra ataque de tempo no login usava um hash
+  inválido (`$2a$12$dummy`), então nunca funcionou. Agora usa um hash bcrypt real.
+- Ainda não há tela para ler o registro. Por enquanto a consulta é via SQL, e
+  cada pessoa vê o seu na exportação.
 
 ## Pendências anotadas (não esquecer)
 

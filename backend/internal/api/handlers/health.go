@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/myroutine/backend/internal/buildinfo"
 )
 
 // HealthHandler handles the health check endpoint.
@@ -44,7 +46,7 @@ func (h *HealthHandler) Check(w http.ResponseWriter, r *http.Request) {
 	resp := healthResponse{
 		Status:    overallStatus,
 		Timestamp: time.Now(),
-		Version:   "0.1.0",
+		Version:   buildinfo.Version,
 		Services:  services,
 	}
 

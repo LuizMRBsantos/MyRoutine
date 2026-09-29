@@ -1,8 +1,10 @@
 # ─── Build stage ─────────────────────────────────────────────
-FROM golang:1.26-alpine AS builder
+# Runs on the build machine's own architecture; Go cross-compiles for the
+# target (e.g. arm64 for AWS Graviton) without emulation.
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS builder
 
 # Install security updates
-RUN apk update && apk upgrade && apk add --no-cache ca-certificates git
+RUN apk update && apk upgrade && apk add --no-cache ca-certificates
 
 WORKDIR /app
 
@@ -10,10 +12,16 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 
+# TARGETARCH is filled in by Docker (amd64, arm64...). VERSION is the git
+# commit, passed by CI: docker build --build-arg VERSION=$(git rev-parse --short HEAD)
+ARG TARGETARCH
+ARG VERSION=dev
+
 # Copy source and build
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-w -s -X main.Version=$(git describe --tags --always)" \
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH \
+    go build -trimpath \
+    -ldflags="-w -s -X github.com/myroutine/backend/internal/buildinfo.Version=${VERSION}" \
     -o /app/bin/api ./cmd/api
 
 # ─── Final stage — minimal image ─────────────────────────────

@@ -89,6 +89,51 @@ func TestReviewDayUpsertsDecision(t *testing.T) {
 	}
 }
 
+// backdateHabit pretends the habit was created `days` ago, so the review
+// window has days in which it already existed.
+func backdateHabit(t *testing.T, habitID string, days int) {
+	t.Helper()
+	if _, err := requireDB(t).Exec(context.Background(),
+		"UPDATE habits SET created_at = NOW() - make_interval(days => $2) WHERE id = $1", habitID, days,
+	); err != nil {
+		t.Fatalf("backdating habit: %v", err)
+	}
+}
+
+// A day before the habit existed is not a "missed" day: a habit created
+// yesterday must not arrive with a week of pending reviews.
+func TestGetMissedDaysIgnoresDaysBeforeHabitExisted(t *testing.T) {
+	reviewSvc := newReviewService(t)
+	habitSvc := newHabitService(t)
+	userID := createTestUser(t)
+	ctx := context.Background()
+
+	habit, err := habitSvc.Create(ctx, userID, CreateHabitInput{
+		Name: "Novo", Icon: "⭐", Color: "#0071E3",
+		Frequency: "daily", TargetDays: []int32{1, 2, 3, 4, 5, 6, 7},
+	})
+	if err != nil {
+		t.Fatalf("creating habit: %v", err)
+	}
+
+	missed, err := reviewSvc.GetMissedDays(ctx, userID)
+	if err != nil {
+		t.Fatalf("getting missed days: %v", err)
+	}
+	if len(missed) != 0 {
+		t.Fatalf("habit created today: missed = %d, want 0 (it did not exist last week)", len(missed))
+	}
+
+	backdateHabit(t, habit.ID, 3)
+	missed, err = reviewSvc.GetMissedDays(ctx, userID)
+	if err != nil {
+		t.Fatalf("getting missed days: %v", err)
+	}
+	if len(missed) != 3 {
+		t.Fatalf("habit created 3 days ago: missed = %d, want 3", len(missed))
+	}
+}
+
 // A missed day is a scheduled day with no log. Days the habit is not
 // scheduled for must never show up as missed.
 func TestGetMissedDaysOnlyScheduledDays(t *testing.T) {
@@ -102,12 +147,14 @@ func TestGetMissedDaysOnlyScheduledDays(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parsing yesterday: %v", err)
 	}
-	if _, err := habitSvc.Create(ctx, userID, CreateHabitInput{
+	weekly, err := habitSvc.Create(ctx, userID, CreateHabitInput{
 		Name: "Semanal", Icon: "⭐", Color: "#0071E3",
 		Frequency: "custom", TargetDays: []int32{isoWeekday(y)},
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("creating habit: %v", err)
 	}
+	backdateHabit(t, weekly.ID, 30)
 
 	missed, err := reviewSvc.GetMissedDays(ctx, userID)
 	if err != nil {
@@ -139,6 +186,7 @@ func TestGetMissedDaysExcludesLoggedDays(t *testing.T) {
 	if err != nil {
 		t.Fatalf("creating habit: %v", err)
 	}
+	backdateHabit(t, habit.ID, 30)
 
 	before, err := reviewSvc.GetMissedDays(ctx, userID)
 	if err != nil {
@@ -180,6 +228,10 @@ func TestGetMissedDaysUsesUserLocalDay(t *testing.T) {
 	})
 	if err != nil {
 		t.Fatalf("creating habit: %v", err)
+	}
+	// Existed long before the window being reviewed (March 2026).
+	if _, err := requireDB(t).Exec(ctx, "UPDATE habits SET created_at = '2026-01-01' WHERE id = $1", habit.ID); err != nil {
+		t.Fatalf("backdating habit: %v", err)
 	}
 	if _, err := habitSvc.CheckIn(ctx, habit.ID, userID, CheckInInput{Date: "2026-03-05"}); err != nil {
 		t.Fatalf("check-in: %v", err)

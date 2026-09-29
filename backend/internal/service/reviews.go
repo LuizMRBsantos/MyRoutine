@@ -63,7 +63,10 @@ func (s *ReviewService) getMissedDays(ctx context.Context, userID string, today 
 			)::date AS day
 		),
 		active_habits AS (
-			SELECT id, name, icon, color, target_days
+			-- created_on: the habit's first day, in the user's timezone. Days
+			-- before it are not "missed" — the habit did not exist yet.
+			SELECT id, name, icon, color, target_days,
+			       (created_at AT TIME ZONE $3)::date AS created_on
 			FROM habits
 			WHERE user_id = $1 AND is_active = true
 		),
@@ -72,6 +75,7 @@ func (s *ReviewService) getMissedDays(ctx context.Context, userID string, today 
 			FROM active_habits ah
 			CROSS JOIN date_series ds
 			WHERE EXTRACT(ISODOW FROM ds.day) = ANY(ah.target_days)
+			  AND ds.day >= ah.created_on
 		)
 		SELECT
 			c.habit_id::text, c.name, c.icon, c.color, c.day::text,
@@ -81,7 +85,7 @@ func (s *ReviewService) getMissedDays(ctx context.Context, userID string, today 
 		LEFT JOIN habit_day_reviews r ON r.habit_id = c.habit_id AND r.review_date = c.day
 		WHERE hl.id IS NULL
 		ORDER BY c.day DESC, c.name ASC
-	`, userID, today.Format("2006-01-02"))
+	`, userID, today.Format("2006-01-02"), appctx.UserTimezone(ctx).String())
 	if err != nil {
 		return nil, fmt.Errorf("querying missed days: %w", err)
 	}

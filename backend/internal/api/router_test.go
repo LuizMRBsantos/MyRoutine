@@ -671,3 +671,69 @@ func TestAccountExportAndDeleteOverHTTP(t *testing.T) {
 		t.Fatalf("access after deletion = %d, want 403", res.StatusCode)
 	}
 }
+
+// Track Day over HTTP: write the day, register what the web parser read,
+// undo it; bad dates and oversized text are refused.
+func TestJournalOverHTTP(t *testing.T) {
+	c := newAuthedClient(t)
+	const day = "/api/v1/journal/2026-03-10"
+	text := "$ 50 Almoço #alimentacao\ncorrida 5km 30min"
+
+	res, raw := c.do(http.MethodPut, day, map[string]string{"content": text})
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("save status = %d, body = %s", res.StatusCode, raw)
+	}
+
+	res, raw = c.do(http.MethodPost, day+"/items", map[string]any{
+		"line": "$ 50 Almoço #alimentacao", "kind": "transaction",
+		"expense": map[string]any{"amount_cents": 5000, "category": "alimentacao", "description": "Almoço"},
+	})
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("register expense status = %d, body = %s", res.StatusCode, raw)
+	}
+
+	res, raw = c.do(http.MethodPost, "/api/v1/habits", map[string]any{"name": "Correr", "category": "health"})
+	if res.StatusCode != http.StatusCreated {
+		t.Fatalf("create habit status = %d, body = %s", res.StatusCode, raw)
+	}
+	var habit struct {
+		ID string `json:"id"`
+	}
+	c.decode(raw, &habit)
+
+	res, raw = c.do(http.MethodPost, day+"/items", map[string]any{
+		"line": "corrida 5km 30min", "kind": "workout",
+		"workout": map[string]any{"habit_id": habit.ID, "metrics": map[string]any{"km": 5}, "time_minutes": 30},
+	})
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("register workout status = %d, body = %s", res.StatusCode, raw)
+	}
+	var view struct {
+		LineIDs map[string]string `json:"line_ids"`
+		Items   []struct {
+			SourceID string `json:"source_id"`
+			Kind     string `json:"kind"`
+		} `json:"items"`
+	}
+	c.decode(raw, &view)
+	if len(view.Items) != 2 || len(view.LineIDs) != 2 {
+		t.Fatalf("view = %+v, want 2 items and 2 line ids", view)
+	}
+
+	res, raw = c.do(http.MethodDelete, day+"/items/"+view.LineIDs["$ 50 Almoço #alimentacao"], nil)
+	if res.StatusCode != http.StatusOK {
+		t.Fatalf("undo status = %d, body = %s", res.StatusCode, raw)
+	}
+	c.decode(raw, &view)
+	if len(view.Items) != 1 || view.Items[0].Kind != "workout" {
+		t.Fatalf("after undo items = %+v, want only the workout", view.Items)
+	}
+
+	if res, _ = c.do(http.MethodGet, "/api/v1/journal/10-03-2026", nil); res.StatusCode != http.StatusBadRequest {
+		t.Fatalf("bad date status = %d, want 400", res.StatusCode)
+	}
+	huge := strings.Repeat("a", 20001)
+	if res, _ = c.do(http.MethodPut, day, map[string]string{"content": huge}); res.StatusCode != http.StatusRequestEntityTooLarge {
+		t.Fatalf("oversized text status = %d, want 413", res.StatusCode)
+	}
+}

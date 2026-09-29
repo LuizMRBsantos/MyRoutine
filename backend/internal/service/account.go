@@ -32,6 +32,7 @@ var exportTables = []string{
 	"category_rules",
 	"body_metrics",
 	"study_sessions",
+	"journal_entries",
 	"audit_logs",
 }
 

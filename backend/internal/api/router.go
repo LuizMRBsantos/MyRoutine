@@ -57,6 +57,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 	studyHandler := handlers.NewStudyHandler(cfg, db, logger)
 	inviteHandler := handlers.NewInviteHandler(db, logger)
 	resetHandler := handlers.NewPasswordResetHandler(db, logger)
+	journalHandler := handlers.NewJournalHandler(db, logger)
 
 	// ─── Routes ─────────────────────────────────────────────────
 
@@ -84,6 +85,14 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 		r.Group(func(r chi.Router) {
 			r.Use(custommiddleware.JWTAuth(cfg))
 			r.Use(custommiddleware.RequireActiveUser(db))
+
+			// Diário (Track Day)
+			r.Route("/journal/{date}", func(r chi.Router) {
+				r.Get("/", journalHandler.Get)
+				r.Put("/", journalHandler.Save)
+				r.Post("/items", journalHandler.Register)
+				r.Delete("/items/{sourceID}", journalHandler.Unregister)
+			})
 
 			// Admin — convites (só quem tem is_admin)
 			r.Route("/admin", func(r chi.Router) {

@@ -15,9 +15,12 @@ let refreshGate: (() => Promise<void>) | null
 const sentTokens: string[] = []
 let active = 0
 let maxActive = 0
+// Sem internet / servidor fora: o pedido falha sem resposta nenhuma.
+let networkDown = false
 
 const adapter: AxiosAdapter = async (config) => {
   const body = JSON.parse(String(config.data ?? '{}'))
+  if (networkDown) throw new AxiosError('Network Error', 'ERR_NETWORK', config)
   sentTokens.push(body.refresh_token)
   active++
   maxActive = Math.max(maxActive, active)
@@ -85,6 +88,7 @@ beforeEach(() => {
   validToken = 'r0'
   rotation = 0
   refreshGate = null
+  networkDown = false
   sentTokens.length = 0
   active = 0
   maxActive = 0
@@ -203,5 +207,23 @@ describe('refreshSession — coordenação entre abas', () => {
     setPersisted(null)
     await expect(other.refreshSession()).rejects.toThrow()
     expect(sentTokens).toEqual(['r0'])
+  })
+})
+
+describe('refreshSession — sem internet', () => {
+  it('não desloga quando o servidor não responde, e a sessão volta com a rede', async () => {
+    setPersisted('r0')
+    const tab = await openTab({ accessToken: null, refreshToken: 'r0' })
+
+    networkDown = true
+    await expect(tab.refreshSession()).rejects.toThrow()
+
+    // A sessão continua: abrir o app no metrô não pode apagar o login.
+    expect(tab.useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(persistedRefreshToken()).toBe('r0')
+
+    networkDown = false
+    await expect(tab.refreshSession()).resolves.toBe('a1')
+    expect(tab.useAuthStore.getState().isAuthenticated).toBe(true)
   })
 })

@@ -64,6 +64,11 @@ async function doRefresh(): Promise<string> {
     )
     return data.access_token as string
   } catch (err) {
+    // Sem resposta do servidor (sem internet, servidor fora do ar), a sessão
+    // pode estar perfeitamente válida. Deslogar aqui trancaria a pessoa fora
+    // do app instalado — e sem rede ela nem conseguiria entrar de novo. Só uma
+    // recusa de verdade do servidor encerra a sessão.
+    if (axios.isAxiosError(err) && !err.response) throw err
     // Dentro da Promise compartilhada: roda uma vez só, não uma por request.
     logout()
     throw err

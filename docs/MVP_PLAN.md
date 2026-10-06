@@ -10,7 +10,7 @@ verdade, em **web, iPhone e Mac**. Nos dois últimos, ele roda como **PWA**, o s
 instalado pela tela inicial ou pelo dock, sem App Store. A hospedagem é na **AWS**.
 
 **Decisão de 29/09:** a IA foi **adiada para depois do lançamento**, porque pede
-decisões de produto com calma. A nova ordem é: AWS (5), depois notificações (4),
+decisões de produto com calma. A nova ordem é: hospedagem (5), depois notificações (4),
 depois a revisão final e os convites (6). **Os convites saem quando o app estiver
 no ar e com notificações.** A IA chega depois, como novidade para os convidados.
 
@@ -23,7 +23,7 @@ no ar e com notificações.** A IA chega depois, como novidade para os convidado
 | 2 | App no celular e no Mac (PWA, layout responsivo, Track Day web, revisão semanal) | ✅ concluída |
 | 3 | IA (Claude): assistente e insights sob demanda | ⏸ adiada (pós-lançamento) |
 | 4 | Notificações (Web Push): uma consolidada por horário, no fuso de cada pessoa | ⏳ depois da AWS (testar no iPhone real exige HTTPS) |
-| 5 | Colocar no ar na AWS. **Luiz faz, com o Claude ensinando passo a passo** | ⏳ **próxima** |
+| 5 | Colocar no ar com **Vercel + Supabase**. O Luiz configura as plataformas e o Claude adapta o código | ⏳ **próxima** |
 | 6 | Revisão final, teste como convidado e envio dos convites | ⏳ |
 
 ### Etapa 0: concluída (27–29/09)
@@ -220,49 +220,101 @@ do convite já prova que o e-mail é da pessoa.
 - Os testes do frontend garantem as regras do produto: nenhum número de dias e
   nenhum texto de comemoração.
 
-### Etapa 5: AWS (em andamento)
+### Etapa 5: colocar no ar com Vercel + Supabase
 
-**Situação (29/09):** conta AWS criada, com MFA na root e orçamento de alerta de
-US$ 10 por mês. A conta mostrou **zero créditos**: falta confirmar se ela ficou no
-plano "Paid". A topologia separada (RDS) sairia a ~US$ 25–30 por mês sem créditos,
-caro demais para 10 pessoas. **A hospedagem está em avaliação pelo Luiz.**
-Nenhum recurso foi criado, então não há custo.
+**Decisão (06/10):** sai a AWS, que ficaria a US$ 10–30 por mês sem créditos. O
+app vai para **Vercel** (telas + API em Go) e **Supabase** (Postgres). Custo:
+**R$ 0 por mês** nos planos gratuitos, mais o domínio `.com.br` (~R$ 40 por ano).
+A conta AWS não tem recursos criados nem custo.
 
-| Opção | Custo por mês (aprox.) | Resumo |
-|---|---|---|
-| A) Serverless | ~US$ 1 | S3/CloudFront + API em Lambda + Postgres gratuito no Neon (fora da AWS). Exige adaptar o backend; cold start de ~1s |
-| B) AWS Lightsail | ~US$ 7 | Um servidor de preço fixo, com IP incluso, rodando o `docker compose` |
-| C) Um EC2 só (recomendada) | ~US$ 10–11 | EC2 ARM com `docker compose`, Caddy (HTTPS), backup diário no S3 e Route 53. Ensina o kit clássico da AWS |
-| ~~Separada com RDS~~ | ~~US$ 25–30~~ | Descartada pelo custo |
+```
+ celular / Mac / navegador (PWA)
+            │  https://myroutine.com.br
+   ┌────────▼─────────────────────────────┐
+   │ Vercel                               │
+   │  ├─ arquivos do app (React) na CDN   │
+   │  └─ /api/*, /health → função em Go   │  o mesmo backend, como "Vercel Function"
+   └────────┬─────────────────────────────┘
+            │ SSL, via pooler de conexões
+   ┌────────▼────────┐        GitHub Actions: CI, migrações antes do deploy,
+   │ Supabase        │        backup diário criptografado
+   │ Postgres        │
+   └─────────────────┘
+```
 
-Valores de referência para `us-east-1`. Em `sa-east-1` fica ~30–50% mais caro.
-O domínio `.com.br` custa ~R$ 40 por ano, em qualquer opção.
+**Adequações no código** (o Claude faz e explica):
+1. **A API como função:** um pacote público `backend/server` monta o handler uma
+   vez por instância (config, pool e admins). `api/index.go` fica na raiz, com um
+   `go.mod` próprio. O `main.go` continua servindo para Docker e para o ambiente
+   local.
+2. **Banco pelo pooler do Supabase:** `default_query_exec_mode=simple_protocol`
+   (o modo transação não aceita prepared statements), pool pequeno configurável
+   (`DB_MAX_CONNS`) e SSL.
+3. **Migrações fora do boot em produção** (`RUN_MIGRATIONS=false`): o GitHub
+   Actions aplica as migrações pela conexão direta, **antes** do deploy de
+   produção.
+4. **Segurança do Supabase:** ele publica automaticamente uma API REST das
+   tabelas do schema `public`, acessível com a chave pública. A proteção tem
+   três partes:
+   - desligar essa "Data API" no painel;
+   - criar uma migração que liga o **RLS em todas as tabelas**, sem políticas, de
+     modo que nada passa por ali (o backend conecta como dono e não é afetado);
+   - um teste que garante RLS em toda tabela nova.
+5. **`vercel.json`:**
+   - build do frontend;
+   - rotas: `/api/*` e `/health` vão para a função, e o resto cai no app (SPA);
+   - cabeçalhos de segurança;
+   - `sw.js` e manifesto sem cache;
+   - função na região `gru1` (São Paulo), perto do Supabase em `sa-east-1`.
+6. **IP do cliente:** a Vercel define `x-real-ip`, que já é suportado
+   (`TRUSTED_IP_HEADER=X-Real-IP`).
+7. **Limite de tentativas no Postgres:** o limite em memória vale só por
+   instância, e no serverless há várias. Ele passa a ser contado numa tabela,
+   valendo entre todas as instâncias.
+8. **Cold start mais leve:** o hash bcrypt "falso" do login passa a ser gerado
+   sob demanda, e não ao carregar (~250 ms a menos na primeira requisição).
+9. **Backup:** o plano gratuito do Supabase **não tem backup para baixar**. Um
+   GitHub Action diário faz `pg_dump`, **criptografa** e guarda por 30 dias. A
+   restauração será testada uma vez.
+10. **Notificações (Etapa 4):** o cron da Vercel no plano grátis roda 1 vez por
+    dia, pouco para lembretes. A ideia é usar o `pg_cron` + `pg_net` do Supabase
+    para chamar um endpoint interno a cada 15 minutos.
 
-**Parte A, preparar o projeto** (o Claude faz):
-- ✅ Imagem multi-arquitetura (`TARGETARCH`, arm64 para Graviton) e versão real no
-  `/health` e no log de início (`internal/buildinfo`).
-- ✅ Limite de tentativas **no app** (`AUTH_RATE_LIMIT_PER_MINUTE`, padrão 10 por
-  minuto por IP) nas rotas `/auth`, respondendo 429 com Retry-After. Na AWS não há
-  nginx na frente.
-- ✅ IP real do cliente por cabeçalho confiável configurável (`TRUSTED_IP_HEADER`):
-  `X-Real-IP` no ambiente local e `CloudFront-Viewer-Address` na AWS. **Só é seguro
-  se o security group do EC2 aceitar apenas o CloudFront.**
-- ✅ A web não desloga por 429 nem por 5xx (só por uma recusa real da sessão), e as
-  mensagens de login, cadastro e redefinição estão em português.
-- ✅ Logs em JSON quando `APP_ENV=production`.
-- ⏳ **Fica para a Parte B**, porque depende do domínio e da região:
-  - `docker-compose` de produção, com a API e o Caddy;
-  - Caddyfile;
-  - script que lê os segredos do Parameter Store;
-  - certificado da CA do RDS (`sslmode=verify-full`);
-  - workflow de deploy (ECR, SSM, S3 e invalidação do CloudFront).
+**Plataformas** (o Luiz faz, o Claude ensina):
+1. Supabase: conta (login com GitHub), projeto na região **São Paulo** e senha
+   forte do banco. Desligar a Data API e copiar as duas *connection strings*:
+   pooler 6543 e direta.
+2. Vercel: conta Hobby (login com GitHub), importar o repositório e configurar as
+   variáveis (`DATABASE_URL`, `JWT_SECRET`, `ADMIN_EMAILS`, `APP_ENV`...).
+3. **Teste de viabilidade primeiro:** um deploy mínimo que só responde
+   `/health`, para provar que o Go roda na Vercel antes das mudanças grandes.
+4. Domínio `.com.br` no Registro.br, apontado para a Vercel (HTTPS automático).
+5. Secrets no GitHub para migrações, backup e deploy.
 
-**Parte B, a AWS** (o Luiz faz, o Claude ensina):
-1. ⏳ Criar a conta, com MFA na root.
-2. Alerta de gastos (Budget) e um usuário do dia a dia (sem usar a root).
-3. Comprar o domínio e criar a zona no Route 53.
-4. Escolher a região.
-5. RDS, EC2, S3/CloudFront, certificados (ACM) e deploy.
+**Limites dos planos gratuitos (não esconder):**
+- Supabase Free:
+  - o projeto **pausa depois de 7 dias sem uso**, e é reativado no painel sem
+    perder dados;
+  - 500 MB de banco;
+  - sem backup próprio, por isso o item 9.
+- Vercel Hobby:
+  - uso pessoal e não comercial, o que serve para um beta com amigos;
+  - funções com tempo máximo por requisição;
+  - cron 1 vez por dia.
+- Go na Vercel: é um runtime menos usado que Node, e a primeira requisição depois
+  de um tempo parado leva algumas centenas de milissegundos. Por isso o teste de
+  viabilidade vem primeiro.
+
+**Já feito e que continua valendo:**
+- versão real no `/health`;
+- limite de tentativas nas rotas de auth (vai para o Postgres no item 7);
+- IP por cabeçalho confiável;
+- logs em JSON em produção;
+- a web não desloga por 429 nem por 5xx;
+- erros traduzidos.
+
+A imagem Docker multi-arquitetura continua servindo para o ambiente local e para
+o CI (Trivy).
 
 ## Pendências anotadas (não esquecer)
 

@@ -54,6 +54,14 @@ type Config struct {
 	// AuthRateLimitPerMinute caps auth requests per client IP. 0 disables it
 	// (tests only — Load() refuses 0).
 	AuthRateLimitPerMinute int
+
+	// RunMigrations applies pending migrations at startup. True locally; false
+	// on Vercel, where CI applies them before deploying (a serverless cold
+	// start must not race other instances over schema changes).
+	RunMigrations bool
+
+	// DBMaxConns caps the connection pool (25 for a server, ~3 serverless).
+	DBMaxConns int
 }
 
 // IsAdminEmail reports whether email (any case/whitespace) is in AdminEmails.
@@ -125,6 +133,14 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("AUTH_RATE_LIMIT_PER_MINUTE must be a positive integer")
 	}
 	cfg.AuthRateLimitPerMinute = limit
+
+	cfg.RunMigrations = getEnv("RUN_MIGRATIONS", "true") != "false"
+
+	maxConns, err := strconv.Atoi(getEnv("DB_MAX_CONNS", "25"))
+	if err != nil || maxConns <= 0 {
+		return nil, fmt.Errorf("DB_MAX_CONNS must be a positive integer")
+	}
+	cfg.DBMaxConns = maxConns
 
 	if err := cfg.validate(); err != nil {
 		return nil, err

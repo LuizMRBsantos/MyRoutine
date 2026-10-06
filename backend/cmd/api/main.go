@@ -44,12 +44,14 @@ func main() {
 	}
 
 	// ─── Database ─────────────────────────────────────────────────
-	if err := db.RunMigrations(cfg.DatabaseURL); err != nil {
-		logger.Fatal("failed to run migrations", zap.Error(err))
+	if cfg.RunMigrations {
+		if err := db.RunMigrations(cfg.DatabaseURL); err != nil {
+			logger.Fatal("failed to run migrations", zap.Error(err))
+		}
+		logger.Info("migrations applied")
 	}
-	logger.Info("migrations applied")
 
-	pool, err := db.Connect(cfg.DatabaseURL)
+	pool, err := db.Connect(cfg.DatabaseURL, cfg.DBMaxConns)
 	if err != nil {
 		logger.Fatal("failed to connect to database", zap.Error(err))
 	}

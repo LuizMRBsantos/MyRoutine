@@ -10,7 +10,10 @@ import (
 
 // Connect creates a PostgreSQL connection pool using pgx.
 // pgx is the most performant native Go PostgreSQL driver.
-func Connect(databaseURL string) (*pgxpool.Pool, error) {
+// Connect opens the pool. maxConns caps open connections: a long-running
+// server can hold many, a serverless function (Vercel) must hold few — each
+// instance has its own pool and Supabase's pooler has a connection budget.
+func Connect(databaseURL string, maxConns int) (*pgxpool.Pool, error) {
 	if databaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")
 	}
@@ -21,8 +24,16 @@ func Connect(databaseURL string) (*pgxpool.Pool, error) {
 	}
 
 	// Pool tuning — important for production performance
-	config.MaxConns = 25
-	config.MinConns = 5
+	if maxConns < 1 {
+		maxConns = 1
+	}
+	config.MaxConns = int32(maxConns)
+	// Keep a few warm connections only when the pool is big (long-running
+	// server); a small serverless pool opens connections on demand.
+	config.MinConns = 0
+	if maxConns >= 10 {
+		config.MinConns = 5
+	}
 	config.MaxConnLifetime = 1 * time.Hour
 	config.MaxConnIdleTime = 30 * time.Minute
 	config.HealthCheckPeriod = 1 * time.Minute

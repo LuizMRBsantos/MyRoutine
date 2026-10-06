@@ -66,6 +66,15 @@ jobs:
         run: go build ./...
         working-directory: backend
 
+      # The Vercel Function (repo-root api/index.go) is its own Go module that
+      # pulls in ./backend through a replace; make sure it stays buildable and
+      # its go.mod/go.sum stay tidy.
+      - name: Build Vercel function
+        run: |
+          go mod tidy -diff
+          go vet ./api/
+          go build ./api/
+
       - name: Vet
         run: go vet ./...
         working-directory: backend

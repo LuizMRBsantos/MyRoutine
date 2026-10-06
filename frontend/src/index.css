@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* A fonte Inter é servida pelo próprio app (@fontsource-variable/inter, importada
+   em main.tsx): funciona offline no PWA, não envia o IP de ninguém ao Google e
+   cabe numa CSP só com 'self'. */
 
 /* ============================================================
    MYROUTINE — Design System
@@ -42,7 +44,7 @@
   --color-habit-teal:     #5AC8FA;
 
   /* Typography */
-  --font-family:   'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  --font-family:   'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
   --font-size-xs:  0.75rem;    /* 12px */
   --font-size-sm:  0.875rem;   /* 14px */
   --font-size-md:  1rem;       /* 16px */

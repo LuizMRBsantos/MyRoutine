@@ -281,13 +281,19 @@ A conta AWS não tem recursos criados nem custo.
     para chamar um endpoint interno a cada 15 minutos.
 
 **Plataformas** (o Luiz faz, o Claude ensina):
-1. Supabase: conta (login com GitHub), projeto na região **São Paulo** e senha
+1. ⏳ **Próximo:** Supabase: conta (login com GitHub), projeto na região **São Paulo** e senha
    forte do banco. Desligar a Data API e copiar as duas *connection strings*:
    pooler 6543 e direta.
-2. Vercel: conta Hobby (login com GitHub), importar o repositório e configurar as
-   variáveis (`DATABASE_URL`, `JWT_SECRET`, `ADMIN_EMAILS`, `APP_ENV`...).
-3. **Teste de viabilidade primeiro:** um deploy mínimo que só responde
-   `/health`, para provar que o Go roda na Vercel antes das mudanças grandes.
+2. ✅ Vercel: conta Hobby criada e repositório importado (preset "Other", que
+   segue o `vercel.json`). ⏳ Falta configurar as variáveis (`DATABASE_URL`, `JWT_SECRET`, `ADMIN_EMAILS`, `APP_ENV`...).
+3. ✅ **Teste de viabilidade (06/10), em `myroutine-eight.vercel.app`:** passou.
+   - A Vercel compila Go 1.26.4.
+   - A função na raiz com `replace` para o backend funciona.
+   - **A função recebe o caminho original** (`/api/...`).
+   - `x-real-ip` presente.
+   - Rotas do React, cabeçalhos de segurança e CSP ok, `sw.js` sem cache.
+   - Região `gru1` (São Paulo).
+   - O endpoint temporário foi removido depois do teste.
 4. Domínio `.com.br` no Registro.br, apontado para a Vercel (HTTPS automático).
 5. Secrets no GitHub para migrações, backup e deploy.
 

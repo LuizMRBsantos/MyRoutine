@@ -22,8 +22,8 @@ no ar e com notificações.** A IA chega depois, como novidade para os convidado
 | 1 | Convites e conta | ✅ concluída |
 | 2 | App no celular e no Mac (PWA, layout responsivo, Track Day web, revisão semanal) | ✅ concluída |
 | 3 | IA (Claude): assistente e insights sob demanda | ⏸ adiada (pós-lançamento) |
-| 4 | Notificações (Web Push): uma consolidada por horário, no fuso de cada pessoa | ⏳ depois da AWS (testar no iPhone real exige HTTPS) |
-| 5 | Colocar no ar com **Vercel + Supabase**. O Luiz configura as plataformas e o Claude adapta o código | ⏳ **próxima** |
+| 4 | Notificações (Web Push): uma consolidada por horário, no fuso de cada pessoa | ⏳ **próxima** |
+| 5 | Colocar no ar com **Vercel + Supabase** | ✅ no ar em `myroutine-eight.vercel.app` (pendente: trocar a senha do banco antes dos convites) |
 | 6 | Revisão final, teste como convidado e envio dos convites | ⏳ |
 
 ### Etapa 0: concluída (27–29/09)
@@ -364,10 +364,13 @@ A conta AWS não tem recursos criados nem custo.
   Provado em produção: 10 respostas 401, a 11ª é 429 com Retry-After. O hash
   bcrypt "falso" agora é gerado sob demanda (`sync.OnceValue`), economizando ~250
   ms no cold start.
-- [ ] **Trocar a senha do banco antes dos convites**, porque ela apareceu no chat
-  e no histórico do terminal. Depois atualizar `DATABASE_URL` (Vercel) e
-  `MIGRATE_DATABASE_URL` (segredo do GitHub).
-- [ ] Domínio `.com.br`, apontado para a Vercel.
+- [ ] **Trocar a senha do banco: adiado pelo Luiz em 08/10, OBRIGATÓRIO antes
+  dos convites (Etapa 6).** Ela apareceu no chat e no histórico do terminal.
+  Depois atualizar `DATABASE_URL` (Vercel) e `MIGRATE_DATABASE_URL` (segredo do
+  GitHub).
+- [~] Domínio `.com.br`: **decisão de 08/10: seguir sem domínio**, em
+  `myroutine-eight.vercel.app`. Se ele vier depois, quem instalou o PWA precisa
+  reinstalar pelo endereço novo.
 
 **Já feito e que continua valendo:**
 - versão real no `/health`;

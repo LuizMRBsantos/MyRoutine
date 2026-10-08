@@ -1,0 +1,98 @@
+name: Deploy — Production
+
+# Production deploys happen ONLY here, after CI passed on main:
+#   1. apply database migrations (Supabase, session pooler)
+#   2. deploy to Vercel (vercel.json disables Git auto-deploys for main)
+#   3. smoke-test /health for the new version
+# The database moves first, so new code never runs against an old schema
+# (migrations are additive — see the go-migration-safety skill).
+
+on:
+  workflow_run:
+    workflows: ["CI — Build, Test & Security"]
+    types: [completed]
+    branches: [main]
+
+# One production deploy at a time, never cancelled midway.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.26"
+  NODE_VERSION: "24"
+  VERCEL_CLI: "vercel@63.1.0"
+  PRODUCTION_URL: "https://myroutine-eight.vercel.app"
+
+jobs:
+  deploy:
+    name: 🚀 Deploy to production
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha }}
+
+    steps:
+      - name: Checkout the commit CI approved
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      # Two quick pushes: only the newest deploys, so production never
+      # moves back to an older commit.
+      - name: Skip if main has moved on
+        id: latest
+        run: |
+          head="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [ "$head" != "$SHA" ]; then
+            echo "main is at $head, not $SHA — a newer run will deploy."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Go
+        if: steps.latest.outputs.skip != 'true'
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: backend/go.sum
+
+      - name: Apply database migrations
+        if: steps.latest.outputs.skip != 'true'
+        run: go run ./cmd/migrate
+        working-directory: backend
+        env:
+          MIGRATE_DATABASE_URL: ${{ secrets.MIGRATE_DATABASE_URL }}
+
+      - name: Set up Node
+        if: steps.latest.outputs.skip != 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Deploy to Vercel
+        if: steps.latest.outputs.skip != 'true'
+        run: npx --yes "$VERCEL_CLI" deploy --prod --yes --token "$VERCEL_TOKEN" --env "APP_VERSION=$SHA"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Smoke test — new version is live and healthy
+        if: steps.latest.outputs.skip != 'true'
+        run: |
+          want="${SHA:0:7}"
+          for _ in $(seq 1 18); do
+            body="$(curl -fsS "$PRODUCTION_URL/health" || true)"
+            if echo "$body" | grep -q "\"version\":\"$want\"" && echo "$body" | grep -q '"status":"healthy"'; then
+              echo "✅ $want is live and healthy"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "❌ $PRODUCTION_URL/health did not report $want as healthy:"
+          echo "$body"
+          exit 1

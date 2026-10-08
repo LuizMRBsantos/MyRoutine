@@ -1,15 +1,18 @@
 package handlers
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 
 	"github.com/myroutine/backend/internal/api/middleware"
 	"github.com/myroutine/backend/internal/config"
+	"github.com/myroutine/backend/internal/push"
 	"github.com/myroutine/backend/internal/service"
 )
 
@@ -104,4 +107,35 @@ func (h *NotificationHandler) Unsubscribe(w http.ResponseWriter, r *http.Request
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// minCronSecretLen: a shorter CRON_SECRET leaves the dispatch endpoint off.
+const minCronSecretLen = 32
+
+// POST /internal/notifications/dispatch — called by the scheduler (Supabase
+// pg_cron) every few minutes with "Authorization: Bearer <CRON_SECRET>".
+func (h *NotificationHandler) Dispatch(w http.ResponseWriter, r *http.Request) {
+	if len(h.cfg.CronSecret) < minCronSecretLen {
+		http.NotFound(w, r)
+		return
+	}
+	want := []byte("Bearer " + h.cfg.CronSecret)
+	if subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), want) != 1 {
+		respondError(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	if !h.cfg.NotificationsEnabled() {
+		respondError(w, http.StatusServiceUnavailable, "notifications are not configured")
+		return
+	}
+
+	sender := push.NewWebPush(h.cfg.VAPIDPublicKey, h.cfg.VAPIDPrivateKey, h.cfg.VAPIDSubject)
+	res, err := h.svc.Dispatch(r.Context(), sender, time.Now())
+	if err != nil {
+		// Partial failures still report what was sent; the next run goes on.
+		h.logger.Error("notification dispatch", zap.Error(err))
+	}
+	h.logger.Info("notification dispatch",
+		zap.Int("sent", res.Sent), zap.Int("removed", res.Removed), zap.Int("failed", res.Failed))
+	respondJSON(w, http.StatusOK, res)
 }

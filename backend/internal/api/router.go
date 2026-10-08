@@ -86,6 +86,9 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 			r.Post("/password-resets/{token}", resetHandler.Reset)
 		})
 
+		// Só o agendador (pg_cron); autorizado pelo CRON_SECRET, não por sessão.
+		r.Post("/internal/notifications/dispatch", notificationHandler.Dispatch)
+
 		// Protected routes — requer JWT válido
 		r.Group(func(r chi.Router) {
 			r.Use(custommiddleware.JWTAuth(cfg))

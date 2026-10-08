@@ -806,3 +806,38 @@ func TestNotificationsOverHTTP(t *testing.T) {
 		t.Fatalf("evil endpoint = %d, want 400", res.StatusCode)
 	}
 }
+
+func TestNotificationDispatchNeedsTheCronSecret(t *testing.T) {
+	const path = "/api/v1/internal/notifications/dispatch"
+	post := func(srv *httptest.Server, auth string) int {
+		req, _ := http.NewRequest(http.MethodPost, srv.URL+path, nil)
+		if auth != "" {
+			req.Header.Set("Authorization", auth)
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		return res.StatusCode
+	}
+
+	off := httptest.NewServer(api.NewRouter(testCfg, testPool, zap.NewNop()))
+	defer off.Close()
+	if got := post(off, "Bearer anything"); got != http.StatusNotFound {
+		t.Fatalf("without CRON_SECRET = %d, want 404 (endpoint off)", got)
+	}
+
+	cfg := *testCfg
+	cfg.CronSecret = strings.Repeat("s", 40)
+	srv := httptest.NewServer(api.NewRouter(&cfg, testPool, zap.NewNop()))
+	defer srv.Close()
+	for _, bad := range []string{"", "Bearer wrong", cfg.CronSecret} {
+		if got := post(srv, bad); got != http.StatusUnauthorized {
+			t.Fatalf("auth %q = %d, want 401", bad, got)
+		}
+	}
+	if got := post(srv, "Bearer "+cfg.CronSecret); got != http.StatusServiceUnavailable {
+		t.Fatalf("right secret but no VAPID keys = %d, want 503", got)
+	}
+}

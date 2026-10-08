@@ -163,3 +163,19 @@ docker run --rm --network host -e PGPASSWORD=restore -v /tmp/myroutine-backup:/i
 skipping tables.
 
 Delete `/tmp/myroutine-backup` afterwards: the decrypted dump holds real data.
+
+## Production notifications (Web Push)
+
+- Vercel (Production): `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`
+  (`https://myroutine-eight.vercel.app`) and `CRON_SECRET` (≥32 chars). Without
+  the VAPID keys the app runs normally, just without notifications.
+- Scheduler: Supabase `pg_cron` + `pg_net` call
+  `POST /api/v1/internal/notifications/dispatch` every 5 minutes with
+  `Authorization: Bearer <CRON_SECRET>`. Set up once with
+  [`ops/notifications-cron.sql`](../ops/notifications-cron.sql) in the SQL Editor.
+  The secret is kept in Supabase Vault.
+- Rotating `CRON_SECRET`: change it on Vercel, redeploy, then run the script
+  again with the new value.
+- Nightly backups dump only schema `public`, so the cron job and the Vault secret
+  are not in them. After a restore to a new project, run the script again.
+

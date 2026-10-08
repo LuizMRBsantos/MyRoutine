@@ -417,6 +417,26 @@ o CI (Trivy).
 4. ⏳ Produção: variáveis na Vercel e job do `pg_cron`.
 5. ⏳ Teste no iPhone real (PWA instalado).
 
+### Depois do lançamento (ideias registradas)
+
+- **Widget do Mac (pedido em 08/10).** Mostra os hábitos de hoje, com
+  **check-in direto no widget** (AppIntents, macOS 14+), e os próximos
+  compromissos do Planner.
+  - Exige um app nativo em Swift/SwiftUI com WidgetKit, porque um PWA não cria
+    widgets.
+  - Usa a mesma API. Para a autenticação, o backend ganha uma **chave de acesso
+    própria do widget**, que pode ser revogada em Minha conta.
+  - Para uso pessoal, roda grátis via Xcode. Para distribuir aos convidados,
+    precisa da Apple Developer (US$ 99 por ano).
+- **Apps nas lojas (iPhone, iPad e Mac):**
+  - Capacitor sobre o app React, com integrações nativas que justificam a App
+    Store: Saúde/Apple Watch → check-in automático de treinos, widgets e Siri.
+  - Na mesma base nativa entra o widget acima.
+  - Requisitos: Apple Developer, política de privacidade, exclusão de conta no
+    app (✅ já existe).
+- **IA (Etapa 3):** assistente e insights sob demanda. Começar carregando a
+  skill `claude-api`.
+
 ## Pendências anotadas (não esquecer)
 
 **Para a Etapa 5 (AWS e nginx):**

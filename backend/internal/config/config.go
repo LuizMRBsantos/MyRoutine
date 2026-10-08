@@ -62,6 +62,23 @@ type Config struct {
 
 	// DBMaxConns caps the connection pool (25 for a server, ~3 serverless).
 	DBMaxConns int
+
+	// Web Push (VAPID). All optional: without the keys the app runs normally,
+	// just without notifications. The public key goes to the browser; the
+	// private key never leaves the server. VAPIDSubject is a contact
+	// ("mailto:...") push services may use to reach the app owner.
+	VAPIDPublicKey  string
+	VAPIDPrivateKey string
+	VAPIDSubject    string
+
+	// CronSecret authorizes the scheduled notification dispatch (called by
+	// Supabase pg_cron). Empty disables the endpoint.
+	CronSecret string
+}
+
+// NotificationsEnabled reports whether Web Push is configured.
+func (c *Config) NotificationsEnabled() bool {
+	return c.VAPIDPublicKey != "" && c.VAPIDPrivateKey != "" && c.VAPIDSubject != ""
 }
 
 // IsAdminEmail reports whether email (any case/whitespace) is in AdminEmails.
@@ -126,6 +143,11 @@ func Load() (*Config, error) {
 		AdminEmails: parseEmailList(os.Getenv("ADMIN_EMAILS")),
 
 		TrustedIPHeader: getEnv("TRUSTED_IP_HEADER", "X-Real-IP"),
+
+		VAPIDPublicKey:  os.Getenv("VAPID_PUBLIC_KEY"),
+		VAPIDPrivateKey: os.Getenv("VAPID_PRIVATE_KEY"),
+		VAPIDSubject:    os.Getenv("VAPID_SUBJECT"),
+		CronSecret:      os.Getenv("CRON_SECRET"),
 	}
 
 	limit, err := strconv.Atoi(getEnv("AUTH_RATE_LIMIT_PER_MINUTE", "10"))

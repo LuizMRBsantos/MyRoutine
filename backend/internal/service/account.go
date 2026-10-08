@@ -33,14 +33,18 @@ var exportTables = []string{
 	"body_metrics",
 	"study_sessions",
 	"journal_entries",
+	"notification_settings",
+	"notification_deliveries",
 	"audit_logs",
 }
 
 // exportExcludedTables have a user_id but hold only security secrets (token
-// hashes) that are meaningless outside the server.
+// hashes, a device's push delivery keys) that are meaningless outside the
+// server.
 var exportExcludedTables = []string{
 	"refresh_tokens",
 	"password_resets",
+	"push_subscriptions",
 }
 
 // exportFormatVersion changes if the export layout ever changes shape.

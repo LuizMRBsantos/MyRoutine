@@ -58,6 +58,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 	inviteHandler := handlers.NewInviteHandler(db, logger)
 	resetHandler := handlers.NewPasswordResetHandler(db, logger)
 	journalHandler := handlers.NewJournalHandler(db, logger)
+	notificationHandler := handlers.NewNotificationHandler(cfg, db, logger)
 
 	// ─── Routes ─────────────────────────────────────────────────
 
@@ -89,6 +90,15 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 		r.Group(func(r chi.Router) {
 			r.Use(custommiddleware.JWTAuth(cfg))
 			r.Use(custommiddleware.RequireActiveUser(db))
+
+			// Notificações (Web Push)
+			r.Route("/notifications", func(r chi.Router) {
+				r.Get("/config", notificationHandler.Config)
+				r.Get("/settings", notificationHandler.GetSettings)
+				r.Put("/settings", notificationHandler.UpdateSettings)
+				r.Post("/subscriptions", notificationHandler.Subscribe)
+				r.Delete("/subscriptions", notificationHandler.Unsubscribe)
+			})
 
 			// Diário (Track Day)
 			r.Route("/journal/{date}", func(r chi.Router) {

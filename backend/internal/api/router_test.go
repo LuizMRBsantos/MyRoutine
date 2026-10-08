@@ -762,3 +762,47 @@ func TestAuthRoutesAreRateLimited(t *testing.T) {
 		t.Fatal("/health must not be rate limited")
 	}
 }
+
+// Notifications over HTTP: off without VAPID keys; with them, a device can
+// subscribe and the settings round-trip.
+func TestNotificationsOverHTTP(t *testing.T) {
+	c := newAuthedClient(t)
+
+	res, raw := c.do(http.MethodGet, "/api/v1/notifications/config", nil)
+	if res.StatusCode != http.StatusOK || !strings.Contains(string(raw), `"enabled":false`) {
+		t.Fatalf("config without keys = %d %s, want enabled:false", res.StatusCode, raw)
+	}
+	sub := map[string]any{
+		"endpoint": fmt.Sprintf("https://web.push.apple.com/test/%d", time.Now().UnixNano()),
+		"keys":     map[string]string{"p256dh": "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM", "auth": "tBHItJI5svbpez7KI4CCXg"}, // gitleaks:allow — public example push key (test fixture)
+	}
+	if res, _ = c.do(http.MethodPost, "/api/v1/notifications/subscriptions", sub); res.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("subscribe without keys = %d, want 503", res.StatusCode)
+	}
+
+	cfg := *testCfg
+	cfg.VAPIDPublicKey, cfg.VAPIDPrivateKey, cfg.VAPIDSubject = "BPublicKeyForTests", "private", "mailto:test@test.local"
+	srv := httptest.NewServer(api.NewRouter(&cfg, testPool, zap.NewNop()))
+	defer srv.Close()
+	on := &apiClient{t: t, base: srv.URL, token: c.token}
+
+	res, raw = on.do(http.MethodGet, "/api/v1/notifications/config", nil)
+	if res.StatusCode != http.StatusOK || !strings.Contains(string(raw), `"vapid_public_key":"BPublicKeyForTests"`) {
+		t.Fatalf("config with keys = %d %s", res.StatusCode, raw)
+	}
+	if res, raw = on.do(http.MethodPost, "/api/v1/notifications/subscriptions", sub); res.StatusCode != http.StatusNoContent {
+		t.Fatalf("subscribe = %d %s, want 204", res.StatusCode, raw)
+	}
+	res, raw = on.do(http.MethodPut, "/api/v1/notifications/settings", map[string]any{
+		"task_reminders": true, "task_lead_minutes": 30, "morning_digest": false,
+		"morning_time": "07:00", "evening_digest": true, "evening_time": "21:30",
+	})
+	if res.StatusCode != http.StatusOK || !strings.Contains(string(raw), `"devices":1`) || !strings.Contains(string(raw), `"task_lead_minutes":30`) {
+		t.Fatalf("update settings = %d %s", res.StatusCode, raw)
+	}
+	if res, _ = on.do(http.MethodPost, "/api/v1/notifications/subscriptions", map[string]any{
+		"endpoint": "https://evil.example.com/x", "keys": map[string]string{"p256dh": "abc", "auth": "def"},
+	}); res.StatusCode != http.StatusBadRequest {
+		t.Fatalf("evil endpoint = %d, want 400", res.StatusCode)
+	}
+}

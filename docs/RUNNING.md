@@ -150,10 +150,11 @@ go run filippo.io/age/cmd/age@v1.2.1 -d \
 
 docker run -d --rm --name myroutine-restore -e POSTGRES_PASSWORD=restore -p 55432:5432 postgres:17-alpine
 sleep 5
+# The dump recreates schema "public" itself, so drop the empty default one.
 # Backups taken before migration 015 still reference Supabase's
 # extensions.uuid_generate_v4(); recreating that schema keeps them restorable.
 docker exec -e PGPASSWORD=restore myroutine-restore psql -U postgres -c \
-  'CREATE SCHEMA IF NOT EXISTS extensions; CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA extensions;'
+  'DROP SCHEMA public CASCADE; CREATE SCHEMA IF NOT EXISTS extensions; CREATE EXTENSION IF NOT EXISTS "uuid-ossp" SCHEMA extensions;'
 docker run --rm --network host -e PGPASSWORD=restore -v /tmp/myroutine-backup:/in postgres:17-alpine \
   pg_restore -h 127.0.0.1 -p 55432 -U postgres -d postgres --no-owner --exit-on-error /in/db.dump
 ```

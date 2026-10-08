@@ -1,77 +1,77 @@
 package middleware
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
+
 	"github.com/myroutine/backend/internal/appctx"
 )
 
-// fakeClock lets the test move time without sleeping.
-type fakeClock struct{ t time.Time }
+// fakeLimiter answers with fixed values and records the keys it saw.
+type fakeLimiter struct {
+	allowed bool
+	retry   time.Duration
+	err     error
+	keys    []string
+}
 
-func (c *fakeClock) now() time.Time { return c.t }
+func (f *fakeLimiter) Allow(_ context.Context, key string) (bool, time.Duration, error) {
+	f.keys = append(f.keys, key)
+	return f.allowed, f.retry, f.err
+}
 
-func hit(h http.Handler, ip string) int {
+func serve(t *testing.T, l Limiter, logger *zap.Logger, ip string) (*httptest.ResponseRecorder, bool) {
+	t.Helper()
+	called := false
+	h := RateLimit(l, logger)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true }))
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", nil)
 	req = req.WithContext(appctx.WithRequestMeta(req.Context(), appctx.RequestMeta{IP: ip}))
 	rr := httptest.NewRecorder()
 	h.ServeHTTP(rr, req)
-	return rr.Code
+	return rr, called
 }
 
-func TestRateLimitBlocksAfterLimitPerIP(t *testing.T) {
-	clock := &fakeClock{t: time.Date(2026, 9, 29, 12, 0, 0, 0, time.UTC)}
-	limiter := newIPLimiter(10, clock.now)
-	h := limiter.middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
-
-	for i := 1; i <= 10; i++ {
-		if code := hit(h, "203.0.113.1"); code != http.StatusOK {
-			t.Fatalf("attempt %d = %d, want 200 (within the limit)", i, code)
-		}
+func TestRateLimitPassesAllowedRequestsKeyedByIP(t *testing.T) {
+	l := &fakeLimiter{allowed: true}
+	rr, called := serve(t, l, zap.NewNop(), "203.0.113.1")
+	if !called || rr.Code != http.StatusOK {
+		t.Fatalf("allowed request: status %d, next called %v", rr.Code, called)
 	}
-	if code := hit(h, "203.0.113.1"); code != http.StatusTooManyRequests {
-		t.Fatalf("11th attempt = %d, want 429", code)
-	}
-	// Another IP has its own bucket.
-	if code := hit(h, "203.0.113.2"); code != http.StatusOK {
-		t.Fatalf("other IP = %d, want 200", code)
-	}
-	// Tokens refill over time: after a minute the first IP gets in again.
-	clock.t = clock.t.Add(time.Minute)
-	if code := hit(h, "203.0.113.1"); code != http.StatusOK {
-		t.Fatalf("after a minute = %d, want 200", code)
+	if len(l.keys) != 1 || l.keys[0] != "203.0.113.1" {
+		t.Fatalf("limiter keys = %v, want the client IP", l.keys)
 	}
 }
 
-func TestRateLimitSends429WithRetryAfter(t *testing.T) {
-	clock := &fakeClock{t: time.Now()}
-	h := newIPLimiter(1, clock.now).middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
-	hit(h, "198.51.100.1")
-
-	req := httptest.NewRequest(http.MethodPost, "/", nil)
-	req = req.WithContext(appctx.WithRequestMeta(req.Context(), appctx.RequestMeta{IP: "198.51.100.1"}))
-	rr := httptest.NewRecorder()
-	h.ServeHTTP(rr, req)
-	if rr.Code != http.StatusTooManyRequests || rr.Header().Get("Retry-After") != "60" {
-		t.Fatalf("status %d, Retry-After %q; want 429 and 60", rr.Code, rr.Header().Get("Retry-After"))
+func TestRateLimitBlocksWith429AndRetryAfter(t *testing.T) {
+	rr, called := serve(t, &fakeLimiter{allowed: false, retry: 2500 * time.Millisecond}, zap.NewNop(), "203.0.113.1")
+	if called || rr.Code != http.StatusTooManyRequests || rr.Header().Get("Retry-After") != "3" {
+		t.Fatalf("status %d, Retry-After %q, next called %v; want 429, 3, false",
+			rr.Code, rr.Header().Get("Retry-After"), called)
 	}
 }
 
-func TestRateLimitForgetsIdleIPs(t *testing.T) {
-	clock := &fakeClock{t: time.Now()}
-	limiter := newIPLimiter(10, clock.now)
-	h := limiter.middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
-	hit(h, "192.0.2.1")
+func TestRateLimitFailsOpenAndLogsWhenTheCounterIsDown(t *testing.T) {
+	core, observed := observer.New(zap.ErrorLevel)
+	rr, called := serve(t, &fakeLimiter{err: errors.New("db down")}, zap.New(core), "203.0.113.1")
+	if !called || rr.Code != http.StatusOK {
+		t.Fatalf("limiter error: status %d, next called %v; want the request to go through", rr.Code, called)
+	}
+	if observed.Len() != 1 {
+		t.Fatalf("logged %d errors, want 1", observed.Len())
+	}
+}
 
-	clock.t = clock.t.Add(11 * time.Minute)
-	hit(h, "192.0.2.2") // triggers the sweep
-
-	limiter.mu.Lock()
-	defer limiter.mu.Unlock()
-	if _, ok := limiter.entries["192.0.2.1"]; ok {
-		t.Fatal("an IP idle for over 10 minutes must be forgotten")
+func TestRateLimitUsesSharedBucketWithoutIP(t *testing.T) {
+	l := &fakeLimiter{allowed: true}
+	serve(t, l, zap.NewNop(), "")
+	if len(l.keys) != 1 || l.keys[0] != "unknown" {
+		t.Fatalf("keys = %v, want the shared 'unknown' bucket", l.keys)
 	}
 }

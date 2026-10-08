@@ -15,6 +15,7 @@ import (
 	"github.com/myroutine/backend/internal/api/handlers"
 	custommiddleware "github.com/myroutine/backend/internal/api/middleware"
 	"github.com/myroutine/backend/internal/config"
+	"github.com/myroutine/backend/internal/ratelimit"
 )
 
 // NewRouter creates and configures the Chi router with all middleware and routes.
@@ -73,7 +74,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 		// senha (em produção não há nginx na frente).
 		r.Route("/auth", func(r chi.Router) {
 			if cfg.AuthRateLimitPerMinute > 0 {
-				r.Use(custommiddleware.RateLimit(cfg.AuthRateLimitPerMinute))
+				r.Use(custommiddleware.RateLimit(ratelimit.NewPostgres(db, cfg.AuthRateLimitPerMinute), logger))
 			}
 			r.Post("/register", authHandler.Register)
 			r.Post("/login", authHandler.Login)

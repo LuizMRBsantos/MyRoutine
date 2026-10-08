@@ -74,7 +74,7 @@ func registerAudited(t *testing.T, prefix string) (userID, email string) {
 func TestDummyPasswordHashIsRealBcrypt(t *testing.T) {
 	// A malformed hash makes bcrypt fail instantly, so a login for an unknown
 	// email would answer faster than for a real one — leaking which exist.
-	cost, err := bcrypt.Cost(dummyPasswordHash)
+	cost, err := bcrypt.Cost(dummyPasswordHash())
 	if err != nil || cost != 12 {
 		t.Fatalf("dummy hash cost = %d, err = %v; want a valid cost-12 bcrypt hash", cost, err)
 	}

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -28,11 +29,16 @@ var (
 	ErrNotFound           = errors.New("not found")
 )
 
-// dummyPasswordHash is a real bcrypt hash (same cost as user passwords)
+// dummyPasswordHash returns a real bcrypt hash (same cost as user passwords)
 // compared against when the email has no account, so a failed login takes
 // the same time whether or not the account exists. A malformed constant here
 // would make bcrypt fail instantly and leak which emails are registered.
-var dummyPasswordHash, _ = bcrypt.GenerateFromPassword([]byte("timing-equalizer-not-a-password"), 12)
+// Built on first use, not at startup: a serverless cold start should not pay
+// ~250 ms for it.
+var dummyPasswordHash = sync.OnceValue(func() []byte {
+	h, _ := bcrypt.GenerateFromPassword([]byte("timing-equalizer-not-a-password"), 12)
+	return h
+})
 
 // AuthService handles authentication business logic.
 type AuthService struct {
@@ -200,7 +206,7 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*AuthR
 	if errors.Is(err, pgx.ErrNoRows) {
 		// Same bcrypt cost as a real check, so response time does not reveal
 		// whether the email has an account.
-		bcrypt.CompareHashAndPassword(dummyPasswordHash, []byte(password)) //nolint:errcheck
+		bcrypt.CompareHashAndPassword(dummyPasswordHash(), []byte(password)) //nolint:errcheck
 		s.auditBestEffort(ctx, auditEvent{Action: AuditLoginFailed, Metadata: map[string]any{"email": email}})
 		return nil, ErrInvalidCredentials
 	}

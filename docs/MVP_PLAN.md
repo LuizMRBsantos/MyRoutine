@@ -383,6 +383,40 @@ A conta AWS não tem recursos criados nem custo.
 A imagem Docker multi-arquitetura continua servindo para o ambiente local e para
 o CI (Trivy).
 
+### Etapa 4: notificações (em andamento)
+
+**Decisões de 08/10:**
+- **Lembrete de compromisso:** 15 minutos antes de cada tarefa do Planner com
+  horário e ainda não concluída. Tarefas que começam juntas viram **uma**
+  notificação. Ligado por padrão.
+- **Resumo da manhã às 07:00:** compromissos e hábitos do dia. Só é enviado se
+  houver algo. Ligado por padrão.
+- **Noite às 21:00:** o que ainda dá tempo hoje, em tom neutro. Opcional e
+  desligado por padrão.
+- Tudo é opt-in em Minha conta → Notificações. Os horários e a antecedência são
+  ajustáveis, e sempre no fuso da pessoa.
+- Dentro da constituição: nunca uma notificação por hábito, sem cobrança e sem
+  vermelho, e nada é enviado quando não há o que dizer.
+
+**Arquitetura:**
+- Web Push (VAPID), via service worker do PWA. No iOS, só com o app instalado na
+  Tela de Início (16.4+).
+- O `pg_cron` + `pg_net` do Supabase chama `POST /api/v1/internal/notifications/dispatch`
+  a cada 5 minutos, com um segredo próprio (`CRON_SECRET`). O cron da Vercel
+  Hobby roda só 1 vez por dia.
+- O registro de entregas (`notification_deliveries`) impede envio duplicado.
+- Assinaturas recusadas pelo serviço de push (404/410) são removidas.
+
+**Partes:**
+1. ⏳ Base: migração (`push_subscriptions`, `notification_settings`,
+   `notification_deliveries`, todas com RLS), chaves VAPID e endpoints de
+   inscrição e preferências.
+2. ⏳ Dispatcher: seleção por fuso e horário, mensagens consolidadas e
+   idempotência.
+3. ⏳ Web: tela de Notificações, permissão, inscrição e `push` no `sw.ts`.
+4. ⏳ Produção: variáveis na Vercel e job do `pg_cron`.
+5. ⏳ Teste no iPhone real (PWA instalado).
+
 ## Pendências anotadas (não esquecer)
 
 **Para a Etapa 5 (AWS e nginx):**

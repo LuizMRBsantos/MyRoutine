@@ -418,12 +418,11 @@ o CI (Trivy).
 3. ✅ Web (`f717044`): seção Notificações em Minha conta, aviso de instalar no
    iPhone, `push`/`notificationclick` no `sw.ts`. Ao sair da conta o aparelho
    para de receber; ao entrar de novo, volta.
-4. ✅/⏳ Produção (`83f1ea3`): variáveis `VAPID_*` e `CRON_SECRET` na Vercel
-   (Production); endpoint conferido (401 com segredo errado, 200 com o certo).
-   Cópia das chaves em `~/.myroutine/notifications.env` (passar para o
-   gerenciador de senhas). **Falta:** o Luiz rodar
-   [`ops/notifications-cron.sql`](../ops/notifications-cron.sql) no SQL Editor
-   do Supabase (o agente não tem acesso de leitura/escrita ao banco de produção).
+4. ✅ Produção (`83f1ea3`): variáveis `VAPID_*` e `CRON_SECRET` na Vercel
+   (Production). Job `myroutine-notifications` do `pg_cron` criado em 08/10 pelo
+   [`ops/notifications-cron.sql`](../ops/notifications-cron.sql), com o segredo no
+   Vault; a primeira chamada respondeu 200. Cópia das chaves em
+   `~/.myroutine/notifications.env` (passar para o gerenciador de senhas).
 5. ⏳ Teste no iPhone real (PWA instalado).
 
 ### Depois do lançamento (ideias registradas)

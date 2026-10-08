@@ -123,3 +123,35 @@ path — otherwise every id would create its own time series.
 - Postgres/Redis are not scraped by Prometheus: that needs
   `postgres_exporter` / `redis_exporter` sidecars, so those jobs were left out
   rather than kept as permanently failing targets.
+
+## Production backups (Supabase)
+
+Supabase Free keeps no downloadable backups, so the **"Backup — Database"**
+workflow (`.github/workflows/backup.yml`) makes one every night at 03:17
+(Brasília). It dumps the app tables (schema `public`), encrypts the dump with
+[`age`](https://age-encryption.org) to a **public** key, and keeps it for 30
+days as a workflow artifact. Run it by hand from the Actions tab
+(*Run workflow*) when needed, e.g. before a risky migration.
+
+- GitHub holds only the public key (repo variable `BACKUP_AGE_RECIPIENT`): it
+  can create backups but cannot read them.
+- The **private key** is `~/.myroutine/backup-age-key.txt` on the owner's Mac.
+  **Keep a copy in a password manager** — without it no backup can be opened.
+
+Restore a backup into a throwaway local Postgres 17 (to inspect it, or as a
+restore drill):
+
+```bash
+gh run list --workflow "Backup — Database"            # pick a run id
+gh run download <run-id> --dir /tmp/myroutine-backup
+go run filippo.io/age/cmd/age@v1.2.1 -d \
+  -i ~/.myroutine/backup-age-key.txt \
+  -o /tmp/myroutine-backup/db.dump /tmp/myroutine-backup/*/myroutine-db-*.dump.age
+
+docker run -d --rm --name myroutine-restore -e POSTGRES_PASSWORD=restore -p 55432:5432 postgres:17-alpine
+sleep 5
+docker run --rm --network host -e PGPASSWORD=restore -v /tmp/myroutine-backup:/in postgres:17-alpine \
+  pg_restore -h 127.0.0.1 -p 55432 -U postgres -d postgres --no-owner /in/db.dump
+```
+
+Delete `/tmp/myroutine-backup` afterwards: the decrypted dump holds real data.

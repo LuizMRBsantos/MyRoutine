@@ -1,0 +1,62 @@
+name: Backup — Database
+
+# Supabase Free keeps no downloadable backups, so this makes our own:
+# every night, pg_dump of the app tables (schema public) → encrypted with
+# `age` to a PUBLIC key → kept 30 days as a workflow artifact.
+#
+# Only the public key (BACKUP_AGE_RECIPIENT, a repo variable) lives here:
+# GitHub can create backups but never read them. The private key stays
+# offline with the owner (see docs/RUNNING.md, "Backups").
+
+on:
+  schedule:
+    - cron: "17 6 * * *" # 03:17 in Brasília
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: 💾 Encrypted database backup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install age
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq age
+
+      - name: Dump, validate and encrypt
+        env:
+          PGURL: ${{ secrets.MIGRATE_DATABASE_URL }}
+          AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+        run: |
+          set -euo pipefail
+          test -n "$AGE_RECIPIENT" || { echo "BACKUP_AGE_RECIPIENT is not set"; exit 1; }
+          stamp="$(date -u +%Y-%m-%dT%H%MZ)"
+          echo "STAMP=$stamp" >> "$GITHUB_ENV"
+
+          # pg_dump must match the server's major version (Supabase: 17).
+          # Custom format (-Fc), app tables only, restorable into any Postgres.
+          docker run --rm --user "$(id -u):$(id -g)" -e PGURL -v "$PWD:/out" postgres:17-alpine \
+            sh -c 'pg_dump "$PGURL" --schema=public --no-owner --no-privileges -Fc -f /out/db.dump'
+
+          # Sanity check before trusting it: a valid archive with table data.
+          tables="$(docker run --rm -v "$PWD:/out" postgres:17-alpine pg_restore --list /out/db.dump | grep -c 'TABLE DATA' || true)"
+          echo "tables with data in the dump: $tables"
+          [ "$tables" -ge 15 ] || { echo "dump looks incomplete"; exit 1; }
+
+          age -r "$AGE_RECIPIENT" -o "myroutine-db-$stamp.dump.age" db.dump
+          rm -f db.dump
+          ls -l ./*.age
+
+      - name: Keep for 30 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: myroutine-db-${{ env.STAMP }}
+          path: myroutine-db-*.dump.age
+          retention-days: 30
+          if-no-files-found: error

@@ -59,3 +59,4 @@ zap-results.json
 # Local temporary artifacts
 .superpowers/
 tmp/
+.vercel

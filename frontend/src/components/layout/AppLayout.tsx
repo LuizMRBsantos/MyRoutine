@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuthStore } from '@/store/authStore'
 import api from '@/services/api'
+import { forgetThisDeviceOnServer, syncThisDevice } from '@/lib/push'
 import styles from './AppLayout.module.css'
 
 interface NavItem {
@@ -55,7 +56,14 @@ export function AppLayout() {
     return () => window.removeEventListener('keydown', onKey)
   }, [moreOpen])
 
+  // Aparelho com notificações já ligadas: fica com quem está logado agora.
+  useEffect(() => {
+    syncThisDevice().catch(() => {})
+  }, [user?.id])
+
   const handleLogout = async () => {
+    // Este aparelho para de receber as notificações de quem saiu.
+    await forgetThisDeviceOnServer().catch(() => {})
     // Revoga o refresh token no servidor antes de limpar o estado local.
     try {
       if (refreshToken) {

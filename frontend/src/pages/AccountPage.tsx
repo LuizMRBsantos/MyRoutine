@@ -5,9 +5,10 @@ import {
 } from '@/hooks/useAccount'
 import { browserTimezone, timezoneOptions } from '@/types/account'
 import { toast, apiErrorMessage } from '@/lib/toast'
+import { NotificationsSection } from './NotificationsSection'
 import styles from './AccountPage.module.css'
 
-// Minha conta: perfil (nome, fuso), senha, e os direitos da LGPD —
+// Minha conta: perfil (nome, fuso), notificações, senha, e os direitos da LGPD —
 // levar os próprios dados e apagar a conta de verdade.
 export function AccountPage() {
   const logout = useAuthStore(s => s.logout)
@@ -26,6 +27,7 @@ export function AccountPage() {
         <ProfileSection name={profile.data.name} timezone={profile.data.timezone} />
       )}
 
+      <NotificationsSection />
       <PasswordSection onChanged={logout} />
       <DataSection />
       <DeleteSection onDeleted={logout} />

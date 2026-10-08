@@ -281,11 +281,11 @@ A conta AWS não tem recursos criados nem custo.
     para chamar um endpoint interno a cada 15 minutos.
 
 **Plataformas** (o Luiz faz, o Claude ensina):
-1. ⏳ **Próximo:** Supabase: conta (login com GitHub), projeto na região **São Paulo** e senha
+1. ✅ Supabase: conta (login com GitHub), projeto na região **São Paulo** e senha
    forte do banco. Desligar a Data API e copiar as duas *connection strings*:
    pooler 6543 e direta.
 2. ✅ Vercel: conta Hobby criada e repositório importado (preset "Other", que
-   segue o `vercel.json`). ⏳ Falta configurar as variáveis (`DATABASE_URL`, `JWT_SECRET`, `ADMIN_EMAILS`, `APP_ENV`...).
+   segue o `vercel.json`). As variáveis estão configuradas (`DATABASE_URL`, `JWT_SECRET`, `ADMIN_EMAILS`, `APP_ENV`...).
 3. ✅ **Teste de viabilidade (06/10), em `myroutine-eight.vercel.app`:** passou.
    - A Vercel compila Go 1.26.4.
    - A função na raiz com `replace` para o backend funciona.
@@ -310,6 +310,33 @@ A conta AWS não tem recursos criados nem custo.
 - Go na Vercel: é um runtime menos usado que Node, e a primeira requisição depois
   de um tempo parado leva algumas centenas de milissegundos. Por isso o teste de
   viabilidade vem primeiro.
+
+**✅ No ar (08/10):** `https://myroutine-eight.vercel.app`.
+- `/health` responde `healthy`, com o Postgres conectado pelo Transaction pooler
+  (porta 6543, `simple_protocol`).
+- Migrações 1 a 14 aplicadas pelo Session pooler (porta 5432), via
+  `go run ./cmd/migrate`.
+- 20 tabelas, todas com RLS; o papel `anon` não lê nada; a Data API está
+  desligada.
+- 7 variáveis só em Production, com `DATABASE_URL` e `JWT_SECRET` como Secret.
+- Conta de admin criada pelo Luiz (`auth.register via admin_email` registrado no
+  `audit_logs`).
+- Verificado em produção:
+  - sem login → 401;
+  - cadastro sem convite → 403;
+  - `/admin` sem login → 401.
+- Integração do agente: Vercel CLI 63.1.0, plugin da Vercel e MCP
+  `https://mcp.vercel.com` (escopo local do projeto).
+
+**Falta na Etapa 5:**
+- [ ] **Migrações no CI antes do deploy de produção.** Hoje a Vercel publica a
+  cada push, em paralelo com qualquer migração, e isso precisa ser ordenado.
+- [ ] Backup diário criptografado (`pg_dump` via GitHub Actions).
+- [ ] Limite de tentativas no Postgres (hoje é por instância) e hash bcrypt
+  "falso" gerado sob demanda.
+- [ ] **Trocar a senha do banco antes dos convites**, porque ela apareceu no chat
+  e no histórico do terminal. Atualizar `DATABASE_URL` na Vercel.
+- [ ] Domínio `.com.br`, apontado para a Vercel.
 
 **Já feito e que continua valendo:**
 - versão real no `/health`;

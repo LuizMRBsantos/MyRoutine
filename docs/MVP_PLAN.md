@@ -338,7 +338,21 @@ A conta AWS não tem recursos criados nem custo.
   - segredos no GitHub: `MIGRATE_DATABASE_URL`, `VERCEL_TOKEN` (validade de 1
     ano), `VERCEL_ORG_ID` e `VERCEL_PROJECT_ID`;
   - primeira execução: tudo verde, versão `9147154` saudável.
-- [ ] Backup diário criptografado (`pg_dump` via GitHub Actions).
+- [x] **Backup diário criptografado (08/10)**, em `.github/workflows/backup.yml`:
+  - roda às 03:17 BRT e também sob demanda;
+  - `pg_dump -Fc` do schema `public`, com Postgres 17 igual ao do Supabase;
+  - criptografado com `age` para a chave **pública** (variável
+    `BACKUP_AGE_RECIPIENT`); a chave privada fica só no Mac do Luiz, em
+    `~/.myroutine/backup-age-key.txt`;
+  - artefato guardado por 30 dias;
+  - **teste de restauração** rigoroso (`--exit-on-error`) num Postgres 17
+    comum: 20 tabelas, usuários e registro de ações voltaram;
+  - o teste encontrou 5 tabelas presas ao `extensions.uuid_generate_v4()` do
+    Supabase, que não restauravam fora dele. Corrigido com a **migração 015**
+    (`gen_random_uuid()`), a primeira aplicada pela esteira sozinha;
+  - passo a passo em `docs/RUNNING.md`.
+  ⚠️ **O Luiz precisa guardar uma cópia da chave privada no gerenciador de
+  senhas.** Sem ela, nenhum backup abre.
 - [ ] Limite de tentativas no Postgres (hoje é por instância) e hash bcrypt
   "falso" gerado sob demanda.
 - [ ] **Trocar a senha do banco antes dos convites**, porque ela apareceu no chat
@@ -384,6 +398,11 @@ o CI (Trivy).
 - A renovação de sessão não tem timeout. Um logout numa aba só é percebido nas
   outras no próximo 401.
 - O modelo `ANTHROPIC_MODEL` padrão está desatualizado. Atualizar na Etapa 3.
+- O Docker local e o testcontainers usam **Postgres 16**, mas a produção
+  (Supabase) é **17**. Alinhar para 17.
+- Acompanhar deploys pela **versão no `/health`**, e não pelo `headSha` dos runs:
+  um run disparado por `workflow_run` aparece com o SHA do `main` no momento em
+  que é disparado.
 - O calendário do Dashboard mostra um texto de desenvolvimento como subtítulo
   ("Visão Google Calendar com ponteiro de tempo ao vivo…"). Trocar no polimento.
 - GitLeaks: rodar sempre no projeto inteiro antes do push. Já houve dois alarmes

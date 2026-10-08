@@ -448,10 +448,8 @@ o CI (Trivy).
 
 ## Pendências anotadas (não esquecer)
 
-- **Rota `/health` do app colide com o `/health` da API.** O menu "Saúde" leva a
-  `/health`. Navegando dentro do app funciona, mas recarregar a página ou abrir o
-  link direto mostra o JSON de saúde do servidor. Correção: mudar a rota do app
-  para `/saude` (com redirecionamento da antiga).
+- ✅ Rota `/health` do app colidia com o `/health` da API (recarregar a tela Saúde
+  mostrava o JSON do servidor). Corrigido: a tela agora é `/saude`.
 
 **Para a Etapa 5 (AWS e nginx):**
 - ~~O rate limit de login no nginx aponta para o endereço errado.~~ Resolvido: o

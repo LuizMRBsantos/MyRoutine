@@ -9,7 +9,7 @@ import styles from './DashboardPage.module.css'
 
 const MODULES = [
   { icon: '◈', label: 'Finanças', desc: 'Controle seus gastos', color: '#34C759', to: '/finance' },
-  { icon: '◉', label: 'Saúde', desc: 'Treinos e métricas', color: '#FF9F0A', to: '/health' },
+  { icon: '◉', label: 'Saúde', desc: 'Treinos e métricas', color: '#FF9F0A', to: '/saude' },
   { icon: '◆', label: 'Estudos', desc: 'Aprendizado ativo', color: '#AF52DE', to: '/studies' },
 ]
 

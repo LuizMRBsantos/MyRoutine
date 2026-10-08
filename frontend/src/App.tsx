@@ -66,7 +66,7 @@ const router = createBrowserRouter([
         element: <ImportPage />,
       },
       {
-        path: '/health',
+        path: '/saude',
         element: <HealthPage />,
       },
       {

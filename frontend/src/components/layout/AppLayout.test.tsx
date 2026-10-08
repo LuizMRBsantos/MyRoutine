@@ -27,7 +27,7 @@ function renderAt(path: string, isAdmin = false) {
       <Routes>
         <Route element={<AppLayout />}>
           <Route path="/" element={<div>página inicial</div>} />
-          <Route path="/health" element={<div>página saúde</div>} />
+          <Route path="/saude" element={<div>página saúde</div>} />
         </Route>
       </Routes>
     </MemoryRouter>

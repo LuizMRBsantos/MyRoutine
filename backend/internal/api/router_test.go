@@ -747,15 +747,39 @@ func TestAuthRoutesAreRateLimited(t *testing.T) {
 	defer srv.Close()
 
 	c := &apiClient{t: t, base: srv.URL}
-	for i := 1; i <= 3; i++ {
+	login := func() int {
 		res, _ := c.do(http.MethodPost, "/api/v1/auth/login", map[string]string{"email": "x@test.local", "password": "errada-123"})
-		if res.StatusCode != http.StatusUnauthorized {
-			t.Fatalf("attempt %d = %d, want 401 (wrong password, within the limit)", i, res.StatusCode)
-		}
+		return res.StatusCode
 	}
-	res, _ := c.do(http.MethodPost, "/api/v1/auth/login", map[string]string{"email": "x@test.local", "password": "errada-123"})
-	if res.StatusCode != http.StatusTooManyRequests {
-		t.Fatalf("4th attempt = %d, want 429", res.StatusCode)
+	// The window is the database's clock minute; on a slow CI run the four
+	// attempts can straddle a minute and the count restarts. Then try again:
+	// two boundaries within one run cannot happen.
+	minute := func() (m time.Time) {
+		if err := testPool.QueryRow(context.Background(), "SELECT date_trunc('minute', now())").Scan(&m); err != nil {
+			t.Fatal(err)
+		}
+		return m
+	}
+	for try := 1; ; try++ {
+		// Start from zero: earlier requests from this IP count too.
+		if _, err := testPool.Exec(context.Background(), "DELETE FROM auth_rate_limits"); err != nil {
+			t.Fatal(err)
+		}
+		start := minute()
+		statuses := []int{login(), login(), login(), login()}
+		crossed := !minute().Equal(start)
+		if crossed && try == 1 {
+			continue
+		}
+		for i, got := range statuses[:3] {
+			if got != http.StatusUnauthorized {
+				t.Fatalf("attempt %d = %d, want 401 (wrong password, within the limit)", i+1, got)
+			}
+		}
+		if statuses[3] != http.StatusTooManyRequests {
+			t.Fatalf("4th attempt = %d, want 429", statuses[3])
+		}
+		break
 	}
 	// Protected (non-auth) routes are not affected by the auth limiter.
 	if res, _ := c.do(http.MethodGet, "/health", nil); res.StatusCode == http.StatusTooManyRequests {

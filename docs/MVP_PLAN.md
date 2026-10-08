@@ -383,7 +383,7 @@ A conta AWS não tem recursos criados nem custo.
 A imagem Docker multi-arquitetura continua servindo para o ambiente local e para
 o CI (Trivy).
 
-### Etapa 4: notificações (em andamento)
+### Etapa 4: notificações (quase pronta)
 
 **Decisões de 08/10:**
 - **Lembrete de compromisso:** 15 minutos antes de cada tarefa do Planner com
@@ -408,13 +408,22 @@ o CI (Trivy).
 - Assinaturas recusadas pelo serviço de push (404/410) são removidas.
 
 **Partes:**
-1. ⏳ Base: migração (`push_subscriptions`, `notification_settings`,
-   `notification_deliveries`, todas com RLS), chaves VAPID e endpoints de
-   inscrição e preferências.
-2. ⏳ Dispatcher: seleção por fuso e horário, mensagens consolidadas e
-   idempotência.
-3. ⏳ Web: tela de Notificações, permissão, inscrição e `push` no `sw.ts`.
-4. ⏳ Produção: variáveis na Vercel e job do `pg_cron`.
+1. ✅ Base (`b227515`): migração 017 (`push_subscriptions`,
+   `notification_settings`, `notification_deliveries`, todas com RLS), endpoints
+   de inscrição e preferências. Endereços aceitos só dos serviços oficiais de
+   push (Apple, Google, Mozilla, Microsoft), para evitar SSRF.
+2. ✅ Dispatcher (`1401d83`): seleção por fuso e horário, mensagens
+   consolidadas, idempotência (cada envio é "reservado" antes), remoção de
+   aparelhos expirados. O envio usa webpush-go e não segue redirecionamentos.
+3. ✅ Web (`f717044`): seção Notificações em Minha conta, aviso de instalar no
+   iPhone, `push`/`notificationclick` no `sw.ts`. Ao sair da conta o aparelho
+   para de receber; ao entrar de novo, volta.
+4. ✅/⏳ Produção (`83f1ea3`): variáveis `VAPID_*` e `CRON_SECRET` na Vercel
+   (Production); endpoint conferido (401 com segredo errado, 200 com o certo).
+   Cópia das chaves em `~/.myroutine/notifications.env` (passar para o
+   gerenciador de senhas). **Falta:** o Luiz rodar
+   [`ops/notifications-cron.sql`](../ops/notifications-cron.sql) no SQL Editor
+   do Supabase (o agente não tem acesso de leitura/escrita ao banco de produção).
 5. ⏳ Teste no iPhone real (PWA instalado).
 
 ### Depois do lançamento (ideias registradas)
@@ -438,6 +447,11 @@ o CI (Trivy).
   skill `claude-api`.
 
 ## Pendências anotadas (não esquecer)
+
+- **Rota `/health` do app colide com o `/health` da API.** O menu "Saúde" leva a
+  `/health`. Navegando dentro do app funciona, mas recarregar a página ou abrir o
+  link direto mostra o JSON de saúde do servidor. Correção: mudar a rota do app
+  para `/saude` (com redirecionamento da antiga).
 
 **Para a Etapa 5 (AWS e nginx):**
 - ~~O rate limit de login no nginx aponta para o endereço errado.~~ Resolvido: o

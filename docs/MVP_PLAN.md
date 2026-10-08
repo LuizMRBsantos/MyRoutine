@@ -329,13 +329,21 @@ A conta AWS não tem recursos criados nem custo.
   `https://mcp.vercel.com` (escopo local do projeto).
 
 **Falta na Etapa 5:**
-- [ ] **Migrações no CI antes do deploy de produção.** Hoje a Vercel publica a
-  cada push, em paralelo com qualquer migração, e isso precisa ser ordenado.
+- [x] **Esteira de deploy (08/10)**, em `.github/workflows/deploy.yml`:
+  - roda **só depois do CI verde** no `main`;
+  - ordem: migrações (Session pooler) → `vercel deploy --prod` (com
+    `APP_VERSION`) → smoke test do `/health`;
+  - um deploy por vez, e um commit antigo nunca sobrepõe um mais novo;
+  - a Vercel não publica mais sozinha (`git.deploymentEnabled.main=false`);
+  - segredos no GitHub: `MIGRATE_DATABASE_URL`, `VERCEL_TOKEN` (validade de 1
+    ano), `VERCEL_ORG_ID` e `VERCEL_PROJECT_ID`;
+  - primeira execução: tudo verde, versão `9147154` saudável.
 - [ ] Backup diário criptografado (`pg_dump` via GitHub Actions).
 - [ ] Limite de tentativas no Postgres (hoje é por instância) e hash bcrypt
   "falso" gerado sob demanda.
 - [ ] **Trocar a senha do banco antes dos convites**, porque ela apareceu no chat
-  e no histórico do terminal. Atualizar `DATABASE_URL` na Vercel.
+  e no histórico do terminal. Depois atualizar `DATABASE_URL` (Vercel) e
+  `MIGRATE_DATABASE_URL` (segredo do GitHub).
 - [ ] Domínio `.com.br`, apontado para a Vercel.
 
 **Já feito e que continua valendo:**

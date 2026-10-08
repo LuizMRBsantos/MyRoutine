@@ -353,8 +353,17 @@ A conta AWS não tem recursos criados nem custo.
   - passo a passo em `docs/RUNNING.md`.
   ⚠️ **O Luiz precisa guardar uma cópia da chave privada no gerenciador de
   senhas.** Sem ela, nenhum backup abre.
-- [ ] Limite de tentativas no Postgres (hoje é por instância) e hash bcrypt
-  "falso" gerado sob demanda.
+- [x] **Limite de tentativas no Postgres (08/10)**, migração 016
+  `auth_rate_limits`:
+  - janela fixa de 1 minuto pelo relógio do banco;
+  - incrementa e lê num comando só (teste: 20 tentativas simultâneas de 2
+    cópias → exatamente 3 passam);
+  - guarda só o SHA-256 do IP;
+  - limpa linhas com mais de 1 hora;
+  - se o contador falhar, deixa passar e registra no log (fail-open).
+  Provado em produção: 10 respostas 401, a 11ª é 429 com Retry-After. O hash
+  bcrypt "falso" agora é gerado sob demanda (`sync.OnceValue`), economizando ~250
+  ms no cold start.
 - [ ] **Trocar a senha do banco antes dos convites**, porque ela apareceu no chat
   e no histórico do terminal. Depois atualizar `DATABASE_URL` (Vercel) e
   `MIGRATE_DATABASE_URL` (segredo do GitHub).

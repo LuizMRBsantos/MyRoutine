@@ -1,6 +1,6 @@
 module github.com/myroutine/backend
 
-go 1.26.4
+go 1.26.9
 
 require (
 	github.com/SherClockHolmes/webpush-go v1.4.0

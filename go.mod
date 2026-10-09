@@ -2,7 +2,7 @@
 // itself is the ./backend module, wired in with a local replace.
 module github.com/myroutine/myroutine
 
-go 1.26.4
+go 1.26.9
 
 require github.com/myroutine/backend v0.0.0
 

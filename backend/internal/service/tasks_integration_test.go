@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 )
@@ -294,5 +295,29 @@ func TestTaskNotifyDefaultsByCategoryAndCanChange(t *testing.T) {
 	}
 	if _, err := svc.Update(ctx, exam.ID, userID, patchFields(t, `{"notify":"yes"}`)); err == nil {
 		t.Fatal("notify must be a boolean")
+	}
+}
+
+// task_details (the subject of a class or exam) goes to a jsonb column. In
+// production (simple protocol) a []byte parameter used to reach Postgres as
+// bytea and every task with details failed with 500.
+func TestTaskDetailsSurviveCreateAndUpdate(t *testing.T) {
+	svc := newTaskService(t)
+	userID := createTestUser(t)
+	ctx := context.Background()
+
+	exam, err := svc.Create(ctx, userID, CreateTaskInput{
+		Title: "Prova - C2", Date: today(), StartTime: strPtr("08:00"), Category: "exam", Priority: "high",
+		TaskDetails: json.RawMessage(`{"subject":"C2"}`),
+	})
+	if err != nil {
+		t.Fatalf("creating exam with details: %v", err)
+	}
+	if string(exam.TaskDetails) != `{"subject": "C2"}` {
+		t.Fatalf("details = %s, want the subject back", exam.TaskDetails)
+	}
+	updated, err := svc.Update(ctx, exam.ID, userID, patchFields(t, `{"task_details":{"subject":"Cálculo 2"}}`))
+	if err != nil || !strings.Contains(string(updated.TaskDetails), "Cálculo 2") {
+		t.Fatalf("updating details: %s, err %v", updated.TaskDetails, err)
 	}
 }

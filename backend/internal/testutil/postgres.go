@@ -59,7 +59,10 @@ func StartPostgres(ctx context.Context) (pool *pgxpool.Pool, cleanup func(), err
 		return nil, noop, fmt.Errorf("running migrations: %w", err)
 	}
 
-	pool, err = pgxpool.New(ctx, dsn)
+	// Production talks to Supabase's transaction pooler, which needs the simple
+	// protocol (parameters sent as text). Tests use the same mode so a value
+	// that only breaks there (e.g. []byte into jsonb) fails here first.
+	pool, err = pgxpool.New(ctx, dsn+"&default_query_exec_mode=simple_protocol")
 	if err != nil {
 		terminate()
 		return nil, noop, fmt.Errorf("connecting to test db: %w", err)

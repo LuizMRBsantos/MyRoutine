@@ -313,7 +313,7 @@ func (s *HabitService) Create(ctx context.Context, userID string, input CreateHa
 		if err != nil {
 			return nil, fmt.Errorf("marshaling metric_config: %w", err)
 		}
-		metricConfigJSON = b
+		metricConfigJSON = string(b) // text, not []byte (simple protocol); see jsonText
 	}
 
 	row := s.db.QueryRow(ctx,
@@ -432,7 +432,7 @@ func (s *HabitService) Update(ctx context.Context, habitID, userID string, input
 		if err != nil {
 			return nil, fmt.Errorf("marshaling metric_config: %w", err)
 		}
-		metricConfigJSON = b
+		metricConfigJSON = string(b) // text, not []byte (simple protocol); see jsonText
 	}
 
 	row := s.db.QueryRow(ctx,
@@ -538,7 +538,7 @@ func (s *HabitService) checkIn(ctx context.Context, habitID, userID string, inpu
 		if err != nil {
 			return nil, fmt.Errorf("marshaling metrics: %w", err)
 		}
-		metricsJSON = b
+		metricsJSON = string(b) // text, not []byte (simple protocol); see jsonText
 	}
 
 	row := s.db.QueryRow(ctx,

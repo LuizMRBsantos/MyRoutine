@@ -147,7 +147,7 @@ func (s *TaskService) Create(ctx context.Context, userID string, input CreateTas
 
 	var details interface{} = nil
 	if len(input.TaskDetails) > 0 && string(input.TaskDetails) != "null" {
-		details = []byte(input.TaskDetails)
+		details = jsonText(input.TaskDetails)
 	}
 
 	row := s.db.QueryRow(ctx, `
@@ -209,7 +209,7 @@ func (s *TaskService) Update(ctx context.Context, taskID, userID string, fields 
 				}
 				value = v
 			case "task_details":
-				value = []byte(raw)
+				value = jsonText(raw)
 			case "notify":
 				var v bool
 				if err := json.Unmarshal(raw, &v); err != nil {
@@ -464,4 +464,11 @@ func scanTasks(rows interface {
 		tasks = []TaskDTO{}
 	}
 	return tasks, nil
+}
+
+// jsonText passes JSON to a json/jsonb column as text. Production uses the
+// simple protocol (Supabase pooler), where a []byte parameter is sent as
+// bytea ("\x7b...") and Postgres rejects it as invalid JSON.
+func jsonText(raw []byte) string {
+	return string(raw)
 }

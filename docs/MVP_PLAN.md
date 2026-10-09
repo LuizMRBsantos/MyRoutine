@@ -425,6 +425,13 @@ o CI (Trivy).
    `~/.myroutine/notifications.env` (passar para o gerenciador de senhas).
 5. ⏳ Teste no iPhone real (PWA instalado).
 
+**Planner para a grade da faculdade (pedido em 09/10):**
+1. ✅ "Me avisar antes" por tarefa (`f16ec0b`, migração 018). Vem ligado para
+   Compromisso, Prova e Trabalho; desligado para Estudo, Exercício, Acordar e
+   Outro; só aparece com horário. O resumo da manhã continua contando tudo.
+2. ⏳ "Repetir": dias da semana + até quando; editar/apagar uma ou as próximas.
+3. ⏳ O Luiz manda a grade; o Claude monta a lista para cadastrar.
+
 ### Depois do lançamento (ideias registradas)
 
 - **Widget do Mac (pedido em 08/10).** Mostra os hábitos de hoje, com
@@ -446,6 +453,11 @@ o CI (Trivy).
   skill `claude-api`.
 
 ## Pendências anotadas (não esquecer)
+
+- ✅ Go fixado em 1.26.9 (09/10) pelas falhas GO-2026-6603..6617 em `net/http`,
+  `crypto/tls` e `textproto`; o staticcheck do CI usa esse mesmo Go.
+- Apagar as versões antigas na Vercel (endereços `myroutine-<hash>-...vercel.app`
+  ainda funcionam; o de 06/10 confundiu o login no Safari). Aguardando o Luiz.
 
 - ✅ Rota `/health` do app colidia com o `/health` da API (recarregar a tela Saúde
   mostrava o JSON do servidor). Corrigido: a tela agora é `/saude`.

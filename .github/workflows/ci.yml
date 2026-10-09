@@ -119,6 +119,9 @@ jobs:
         uses: dominikh/staticcheck-action@v1
         with:
           working-directory: backend
+          # Use the pinned Go from setup-go; the action's own Go differs and
+          # its export data breaks the analysis.
+          install-go: false
 
   # ─────────────────────────────────────────────────────────────
   # 3. FRONTEND — Node build, test, audit

@@ -97,15 +97,14 @@ jobs:
           files: backend/coverage.out
 
       # SAST — Static Application Security Testing
+      # Installed with pipx: the old semgrep-action pulled its image from Docker
+      # Hub on every run and hit the anonymous pull limit. Report-only, as
+      # before (the action never blocked without a Semgrep App token).
       - name: Run Semgrep (SAST)
-        uses: semgrep/semgrep-action@v1
-        with:
-          config: >-
-            p/golang
-            p/owasp-top-ten
-            p/secrets
-        env:
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        working-directory: .
+        run: |
+          pipx install semgrep  # pipx: Ubuntu 24 blocks system-wide pip installs
+          semgrep scan --config p/golang --config p/owasp-top-ten --config p/secrets --metrics=off
 
       # Dependency vulnerability scan
       - name: Run govulncheck

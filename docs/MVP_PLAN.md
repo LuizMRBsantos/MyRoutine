@@ -454,6 +454,10 @@ o CI (Trivy).
 
 ## Pendências anotadas (não esquecer)
 
+- Semgrep (09/10, só relatório): 18 avisos para fixar as actions do GitHub por
+  SHA, 1 sobre `workflow_run` com checkout do commit (o deploy só roda após o
+  CI verde do próprio repo), 3 no `infra/nginx` (dev). Nenhum no código do app.
+
 - ✅ Go fixado em 1.26.9 (09/10) pelas falhas GO-2026-6603..6617 em `net/http`,
   `crypto/tls` e `textproto`; o staticcheck do CI usa esse mesmo Go.
 - Apagar as versões antigas na Vercel (endereços `myroutine-<hash>-...vercel.app`

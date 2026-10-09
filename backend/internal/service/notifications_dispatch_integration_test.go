@@ -245,3 +245,18 @@ func TestExpiredDeviceIsForgotten(t *testing.T) {
 		t.Fatalf("devices = %d, want 0 after the push service said it is gone", v.Devices)
 	}
 }
+
+func TestTasksMarkedNotToNotifyStayQuiet(t *testing.T) {
+	userID, device := subscribedUser(t)
+	addTask(t, userID, "Aula de Cálculo", "2030-03-12", "14:30", "planned")
+	if _, err := requireDB(t).Exec(context.Background(),
+		"UPDATE tasks SET notify = false WHERE user_id = $1", userID); err != nil {
+		t.Fatal(err)
+	}
+	push := newFakePush()
+
+	dispatch(t, push, at("2030-03-12", "14:20"))
+	if got := push.to(device); len(got) != 0 {
+		t.Fatalf("task with notify off: got %+v, want no reminder", got)
+	}
+}

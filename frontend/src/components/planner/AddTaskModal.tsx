@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import type { CreateTaskInput, Task, TaskCategory, TaskPriority } from '@/types/task'
-import { CATEGORY_META } from '@/types/task'
+import { CATEGORY_META, notifyByDefault } from '@/types/task'
 import { DatePickerCalendar } from './DatePickerCalendar'
 import styles from './AddTaskModal.module.css'
 
@@ -66,6 +66,9 @@ export function AddTaskModal({ date, editTask, defaultStartTime, onSave, onClose
   const [durationMin, setDurationMin] = useState(editTask?.duration_minutes?.toString() ?? '')
   const [priority, setPriority] = useState<TaskPriority>(editTask?.priority ?? 'medium')
   const [notes, setNotes] = useState(editTask?.notes ?? '')
+  // null = segue o padrão da categoria até a pessoa mexer no "Me avisar antes".
+  const [notifyChoice, setNotifyChoice] = useState<boolean | null>(editTask ? editTask.notify : null)
+  const notify = notifyChoice ?? notifyByDefault(category)
 
   // Campos específicos por categoria — pré-preenchidos do task_details
   const [subject, setSubject] = useState((details.subject as string) ?? '')
@@ -105,6 +108,7 @@ export function AddTaskModal({ date, editTask, defaultStartTime, onSave, onClose
       duration_minutes: durationMin ? parseInt(durationMin) : undefined,
       notes: notes || undefined,
       task_details,
+      notify,
     })
   }
 
@@ -295,6 +299,18 @@ export function AddTaskModal({ date, editTask, defaultStartTime, onSave, onClose
                   />
                 </div>
               </div>
+
+              {/* Lembrete: só faz sentido com horário */}
+              {startTime && (
+                <label className={styles.notifyRow}>
+                  <input
+                    type="checkbox"
+                    checked={notify}
+                    onChange={(e) => setNotifyChoice(e.target.checked)}
+                  />
+                  Me avisar antes
+                </label>
+              )}
 
               {/* Prioridade */}
               <div>

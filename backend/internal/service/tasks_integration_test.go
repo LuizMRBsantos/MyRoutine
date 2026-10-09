@@ -261,3 +261,38 @@ func TestMonthlyGoalStatusNotFound(t *testing.T) {
 		t.Errorf("err = %v, want ErrNotFound", err)
 	}
 }
+
+// "Me avisar antes": on by default for appointments, exams and work
+// (meetings); off for classes, exercise, waking up and "other". Either can be
+// changed per task.
+func TestTaskNotifyDefaultsByCategoryAndCanChange(t *testing.T) {
+	svc := newTaskService(t)
+	userID := createTestUser(t)
+	ctx := context.Background()
+
+	for category, want := range map[string]bool{
+		"appointment": true, "exam": true, "work": true,
+		"study": false, "exercise": false, "wake_up": false, "other": false, "": false,
+	} {
+		task, err := svc.Create(ctx, userID, CreateTaskInput{Title: "x", Date: today(), StartTime: strPtr("10:00"), Category: category})
+		if err != nil {
+			t.Fatalf("%q: %v", category, err)
+		}
+		if task.Notify != want {
+			t.Errorf("category %q: notify = %v, want %v", category, task.Notify, want)
+		}
+	}
+
+	off := false
+	exam, err := svc.Create(ctx, userID, CreateTaskInput{Title: "Prova", Date: today(), Category: "exam", Notify: &off})
+	if err != nil || exam.Notify {
+		t.Fatalf("explicit notify=false on an exam: %+v, err %v", exam, err)
+	}
+	updated, err := svc.Update(ctx, exam.ID, userID, patchFields(t, `{"notify":true}`))
+	if err != nil || !updated.Notify {
+		t.Fatalf("update notify=true: %+v, err %v", updated, err)
+	}
+	if _, err := svc.Update(ctx, exam.ID, userID, patchFields(t, `{"notify":"yes"}`)); err == nil {
+		t.Fatal("notify must be a boolean")
+	}
+}

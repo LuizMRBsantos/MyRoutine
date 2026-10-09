@@ -209,8 +209,8 @@ type upcomingTask struct {
 	id, title, date, start string
 }
 
-// taskReminder: appointments (tasks with a start time, not finished) that
-// start within the lead time, consolidated into one notification.
+// taskReminder: appointments (tasks with a start time, marked "Me avisar
+// antes", not finished) that start within the lead time, consolidated into one notification.
 func (s *NotificationService) taskReminder(ctx context.Context, r notifyRecipient, now, local time.Time) (*PushMessage, error) {
 	today := local.Format(dateLayout)
 	tomorrow := local.AddDate(0, 0, 1).Format(dateLayout) // a lead can cross midnight
@@ -218,7 +218,7 @@ func (s *NotificationService) taskReminder(ctx context.Context, r notifyRecipien
 		`SELECT id::text, title, date::text, to_char(start_time, 'HH24:MI')
 		 FROM tasks
 		 WHERE user_id = $1 AND date IN ($2::date, $3::date)
-		   AND start_time IS NOT NULL AND status IN ('planned', 'in_progress')
+		   AND start_time IS NOT NULL AND notify AND status IN ('planned', 'in_progress')
 		 ORDER BY date, start_time, title`,
 		r.userID, today, tomorrow)
 	if err != nil {

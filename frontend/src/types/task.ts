@@ -57,6 +57,7 @@ export interface Task {
   task_details?: TaskDetails
   linked_habit_id?: string
   color?: string
+  notify: boolean          // "Me avisar antes" (lembrete pelo horário)
   created_at: string
   updated_at: string
 }
@@ -73,6 +74,14 @@ export interface CreateTaskInput {
   task_details?: TaskDetails
   linked_habit_id?: string
   color?: string
+  notify?: boolean         // ausente = padrão da categoria
+}
+
+// Compromissos, provas e trabalho (reuniões) avisam antes por padrão; aulas,
+// exercício, acordar e "outro" só preenchem o calendário. Igual ao backend
+// (service.NotifyByDefault).
+export function notifyByDefault(category: TaskCategory): boolean {
+  return category === 'appointment' || category === 'exam' || category === 'work'
 }
 
 // ─── Update Input ─────────────────────────────────────────
@@ -86,6 +95,7 @@ export interface UpdateTaskInput {
   task_details?: TaskDetails
   linked_habit_id?: string
   color?: string
+  notify?: boolean
 }
 
 // ─── Monthly Goal ─────────────────────────────────────────

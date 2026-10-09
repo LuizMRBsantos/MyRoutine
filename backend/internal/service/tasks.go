@@ -28,6 +28,7 @@ type TaskDTO struct {
 	TaskDetails     json.RawMessage `json:"task_details"` // JSONB — payload por categoria
 	LinkedHabitID   *string         `json:"linked_habit_id"`
 	Color           *string         `json:"color"`
+	Notify          bool            `json:"notify"` // lembrete antes do horário
 	CreatedAt       time.Time       `json:"created_at"`
 	UpdatedAt       time.Time       `json:"updated_at"`
 }
@@ -43,6 +44,17 @@ type CreateTaskInput struct {
 	TaskDetails     json.RawMessage `json:"task_details"`
 	LinkedHabitID   *string         `json:"linked_habit_id"`
 	Color           *string         `json:"color"`
+	Notify          *bool           `json:"notify"` // nil = padrão da categoria
+}
+
+// NotifyByDefault: compromissos, provas e trabalho (reuniões) avisam antes;
+// aulas, exercício, acordar e "outro" só preenchem o calendário.
+func NotifyByDefault(category string) bool {
+	switch category {
+	case "appointment", "exam", "work":
+		return true
+	}
+	return false
 }
 
 type MonthlyGoalDTO struct {
@@ -68,7 +80,7 @@ func NewTaskService(db *pgxpool.Pool) *TaskService {
 
 const taskReturningColumns = `id, user_id, title, date::text, start_time::text, duration_minutes,
 	category, status, priority, notes, task_details, linked_habit_id, color,
-	created_at, updated_at`
+	notify, created_at, updated_at`
 
 // ─── Tasks CRUD ───────────────────────────────────────────────────────────────
 
@@ -128,6 +140,11 @@ func (s *TaskService) Create(ctx context.Context, userID string, input CreateTas
 		startTime = normalizeTimeString(*input.StartTime)
 	}
 
+	notify := NotifyByDefault(input.Category)
+	if input.Notify != nil {
+		notify = *input.Notify
+	}
+
 	var details interface{} = nil
 	if len(input.TaskDetails) > 0 && string(input.TaskDetails) != "null" {
 		details = []byte(input.TaskDetails)
@@ -135,11 +152,11 @@ func (s *TaskService) Create(ctx context.Context, userID string, input CreateTas
 
 	row := s.db.QueryRow(ctx, `
 		INSERT INTO tasks (user_id, title, date, start_time, duration_minutes,
-		                   category, priority, notes, task_details, linked_habit_id, color)
-		VALUES ($1, $2, $3::date, $4::time, $5, $6, $7, $8, $9, $10, $11)
+		                   category, priority, notes, task_details, linked_habit_id, color, notify)
+		VALUES ($1, $2, $3::date, $4::time, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING `+taskReturningColumns,
 		userID, input.Title, input.Date, startTime, input.DurationMinutes,
-		input.Category, input.Priority, input.Notes, details, input.LinkedHabitID, input.Color,
+		input.Category, input.Priority, input.Notes, details, input.LinkedHabitID, input.Color, notify,
 	)
 
 	return scanTask(row.Scan)
@@ -160,6 +177,7 @@ var taskUpdatableColumns = map[string]string{
 	"task_details":     "task_details",
 	"linked_habit_id":  "linked_habit_id",
 	"color":            "color",
+	"notify":           "notify",
 }
 
 var taskColumnCasts = map[string]string{
@@ -192,6 +210,12 @@ func (s *TaskService) Update(ctx context.Context, taskID, userID string, fields 
 				value = v
 			case "task_details":
 				value = []byte(raw)
+			case "notify":
+				var v bool
+				if err := json.Unmarshal(raw, &v); err != nil {
+					return nil, fmt.Errorf("invalid %s: %w", field, err)
+				}
+				value = v
 			default:
 				var v string
 				if err := json.Unmarshal(raw, &v); err != nil {
@@ -389,7 +413,7 @@ func scanTask(scan func(...any) error) (*TaskDTO, error) {
 		&t.StartTime, &t.DurationMinutes,
 		&t.Category, &t.Status, &t.Priority,
 		&t.Notes, &details, &t.LinkedHabitID, &t.Color,
-		&t.CreatedAt, &t.UpdatedAt,
+		&t.Notify, &t.CreatedAt, &t.UpdatedAt,
 	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotFound
@@ -420,7 +444,7 @@ func scanTasks(rows interface {
 			&t.StartTime, &t.DurationMinutes,
 			&t.Category, &t.Status, &t.Priority,
 			&t.Notes, &details, &t.LinkedHabitID, &t.Color,
-			&t.CreatedAt, &t.UpdatedAt,
+			&t.Notify, &t.CreatedAt, &t.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}

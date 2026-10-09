@@ -5,6 +5,7 @@ import { useHabits, useHabitStats, useHeatmap } from '@/hooks/useHabits'
 import { TodayHabits } from '@/components/dashboard/TodayHabits'
 import { HabitHeatmap } from '@/components/habits/HabitHeatmap'
 import { DashboardCalendarWidget } from '@/components/dashboard/DashboardCalendarWidget'
+import { WeeklyGoals } from '@/components/dashboard/WeeklyGoals'
 import styles from './DashboardPage.module.css'
 
 const MODULES = [
@@ -115,6 +116,9 @@ export function DashboardPage() {
           ))}
         </div>
       </div>
+
+      {/* ─── Metas da semana ────────────────────────── */}
+      <WeeklyGoals />
 
       {/* ─── Calendário Interativo Google Calendar (Semana/Mês) ────── */}
       <DashboardCalendarWidget />

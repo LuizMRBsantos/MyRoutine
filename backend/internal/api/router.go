@@ -59,6 +59,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 	resetHandler := handlers.NewPasswordResetHandler(db, logger)
 	journalHandler := handlers.NewJournalHandler(db, logger)
 	notificationHandler := handlers.NewNotificationHandler(cfg, db, logger)
+	weeklyGoalHandler := handlers.NewWeeklyGoalHandler(db, logger)
 
 	// ─── Routes ─────────────────────────────────────────────────
 
@@ -213,6 +214,14 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 				r.Post("/sessions", studyHandler.CreateSession)
 				r.Delete("/sessions/{id}", studyHandler.DeleteSession)
 				r.Get("/summary", studyHandler.Summary)
+			})
+
+			// Metas da semana (Dashboard)
+			r.Route("/weekly-goals", func(r chi.Router) {
+				r.Get("/", weeklyGoalHandler.List) // ?date=YYYY-MM-DD
+				r.Post("/", weeklyGoalHandler.Create)
+				r.Patch("/{id}", weeklyGoalHandler.SetDone)
+				r.Delete("/{id}", weeklyGoalHandler.Delete)
 			})
 
 			// Monthly Goals

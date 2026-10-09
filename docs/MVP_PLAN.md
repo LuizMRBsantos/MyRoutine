@@ -432,6 +432,11 @@ o CI (Trivy).
 2. ⏳ "Repetir": dias da semana + até quando; editar/apagar uma ou as próximas.
 3. ⏳ O Luiz manda a grade; o Claude monta a lista para cadastrar.
 
+**Metas da semana (pedido em 09/10):** ✅ cartão no Dashboard; meta simples
+(feita ou não), segunda a domingo no fuso da pessoa, independente das metas do
+mês, sem placar ou porcentagem. Migração 019 (`weekly_goals`, RLS), entra na
+exportação LGPD.
+
 ### Depois do lançamento (ideias registradas)
 
 - **Widget do Mac (pedido em 08/10).** Mostra os hábitos de hoje, com

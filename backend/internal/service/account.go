@@ -24,6 +24,7 @@ var exportTables = []string{
 	"habit_day_reviews",
 	"tasks",
 	"monthly_goals",
+	"weekly_goals",
 	"transactions",
 	"budgets",
 	"credit_cards",

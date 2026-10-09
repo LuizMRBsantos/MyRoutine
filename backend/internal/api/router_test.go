@@ -865,3 +865,35 @@ func TestNotificationDispatchNeedsTheCronSecret(t *testing.T) {
 		t.Fatalf("right secret but no VAPID keys = %d, want 503", got)
 	}
 }
+
+func TestWeeklyGoalsOverHTTP(t *testing.T) {
+	c := newAuthedClient(t)
+
+	res, raw := c.do(http.MethodPost, "/api/v1/weekly-goals", map[string]string{"title": "Lista 3 de C2", "date": "2030-03-14"})
+	if res.StatusCode != http.StatusCreated || !strings.Contains(string(raw), `"week":"2030-03-11"`) {
+		t.Fatalf("create = %d %s, want 201 in the week of 2030-03-11", res.StatusCode, raw)
+	}
+	var goal struct{ ID string }
+	if err := json.Unmarshal(raw, &goal); err != nil {
+		t.Fatal(err)
+	}
+
+	if res, raw = c.do(http.MethodPatch, "/api/v1/weekly-goals/"+goal.ID, map[string]bool{"done": true}); res.StatusCode != http.StatusOK || !strings.Contains(string(raw), `"done":true`) {
+		t.Fatalf("mark done = %d %s", res.StatusCode, raw)
+	}
+	if res, raw = c.do(http.MethodGet, "/api/v1/weekly-goals?date=2030-03-17", nil); res.StatusCode != http.StatusOK || !strings.Contains(string(raw), "Lista 3 de C2") {
+		t.Fatalf("list = %d %s", res.StatusCode, raw)
+	}
+	if res, _ = c.do(http.MethodGet, "/api/v1/weekly-goals", nil); res.StatusCode != http.StatusOK {
+		t.Fatalf("list this week = %d", res.StatusCode)
+	}
+	if res, _ = c.do(http.MethodPost, "/api/v1/weekly-goals", map[string]string{"title": "  "}); res.StatusCode != http.StatusBadRequest {
+		t.Fatalf("empty title = %d, want 400", res.StatusCode)
+	}
+	if res, _ = c.do(http.MethodPatch, "/api/v1/weekly-goals/not-a-uuid", map[string]bool{"done": true}); res.StatusCode != http.StatusNotFound {
+		t.Fatalf("bad id = %d, want 404", res.StatusCode)
+	}
+	if res, _ = c.do(http.MethodDelete, "/api/v1/weekly-goals/"+goal.ID, nil); res.StatusCode != http.StatusNoContent {
+		t.Fatalf("delete = %d, want 204", res.StatusCode)
+	}
+}

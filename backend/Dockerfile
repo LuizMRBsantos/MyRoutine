@@ -1,7 +1,9 @@
 # ─── Build stage ─────────────────────────────────────────────
 # Runs on the build machine's own architecture; Go cross-compiles for the
 # target (e.g. arm64 for AWS Graviton) without emulation.
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS builder
+# Docker Hub images via Google's public mirror: CI runners share IPs and hit
+# Docker Hub's anonymous pull limit.
+FROM --platform=$BUILDPLATFORM mirror.gcr.io/library/golang:1.26-alpine AS builder
 
 # Install security updates
 RUN apk update && apk upgrade && apk add --no-cache ca-certificates

@@ -1,5 +1,6 @@
 # ─── Build stage ─────────────────────────────────────────────
-FROM node:20-alpine AS builder
+# Docker Hub images via Google's public mirror (CI hits Docker Hub's pull limit).
+FROM mirror.gcr.io/library/node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -12,7 +13,7 @@ COPY . .
 RUN npm run build
 
 # ─── Serve stage — static files behind nginx ─────────────────
-FROM nginx:alpine
+FROM mirror.gcr.io/library/nginx:alpine
 
 # The upstream image lags behind Alpine security fixes
 RUN apk upgrade --no-cache

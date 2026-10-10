@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import { useAuthStore } from '@/store/authStore'
 import api from '@/services/api'
 import { forgetThisDeviceOnServer, syncThisDevice } from '@/lib/push'
+import { CheckInDock } from '@/components/habits/CheckInDock'
 import styles from './AppLayout.module.css'
 
 interface NavItem {
@@ -183,6 +184,8 @@ export function AppLayout() {
       >
         <Outlet />
       </motion.main>
+
+      <CheckInDock />
     </div>
   )
 }

@@ -453,3 +453,44 @@ func TestStatsAndHeatmapUseUserLocalDay(t *testing.T) {
 		t.Error("heatmap includes 2025-03-08, which is 366 days before the local today")
 	}
 }
+
+// A habit only for Tuesdays and Thursdays is not part of Wednesday: the
+// Dashboard hides it and the day's count ignores it.
+func TestHabitsKnowWhetherTheyAreScheduledToday(t *testing.T) {
+	svc := NewHabitService(requireDB(t), testLogger)
+	userID := createTestUser(t)
+	ctx := context.Background()
+
+	if _, err := svc.Create(ctx, userID, CreateHabitInput{Name: "Correr", Frequency: "custom", TargetDays: []int32{2, 4}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Create(ctx, userID, CreateHabitInput{Name: "Ler", Frequency: "daily", TargetDays: []int32{1, 2, 3, 4, 5, 6, 7}}); err != nil {
+		t.Fatal(err)
+	}
+
+	wednesday := time.Date(2030, 3, 13, 12, 0, 0, 0, time.UTC)
+	thursday := wednesday.AddDate(0, 0, 1)
+
+	scheduled := func(day time.Time) map[string]bool {
+		habits, err := svc.listByUser(ctx, userID, day)
+		if err != nil {
+			t.Fatal(err)
+		}
+		out := map[string]bool{}
+		for _, h := range habits {
+			out[h.Name] = h.ScheduledToday
+		}
+		return out
+	}
+	if got := scheduled(wednesday); got["Correr"] || !got["Ler"] {
+		t.Fatalf("wednesday: %v, want only Ler scheduled", got)
+	}
+	if got := scheduled(thursday); !got["Correr"] || !got["Ler"] {
+		t.Fatalf("thursday: %v, want both scheduled", got)
+	}
+
+	stats, err := svc.getStats(ctx, userID, wednesday)
+	if err != nil || stats.TotalHabits != 1 {
+		t.Fatalf("wednesday stats total = %d (err %v), want 1 (Correr is not today)", stats.TotalHabits, err)
+	}
+}

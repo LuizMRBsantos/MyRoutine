@@ -29,6 +29,8 @@ export interface Habit {
   created_at: string
   current_streak: number
   completed_today: boolean
+  // Hoje (no fuso da pessoa) é um dos target_days.
+  scheduled_today: boolean
   // Advanced check type fields
   check_type: HabitCheckType
   timer_minutes?: number

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -69,6 +70,8 @@ type HabitDTO struct {
 	// Computed fields
 	CurrentStreak  int  `json:"current_streak"`
 	CompletedToday bool `json:"completed_today"`
+	// ScheduledToday: today (in the user's timezone) is one of target_days.
+	ScheduledToday bool `json:"scheduled_today"`
 }
 
 type HabitLogDTO struct {
@@ -281,6 +284,7 @@ func (s *HabitService) listByUser(ctx context.Context, userID string, today time
 	for i := range habits {
 		habitLogs := logs[habits[i].ID]
 		habits[i].CompletedToday = habitLogs[todayKey]
+		habits[i].ScheduledToday = slices.Contains(habits[i].TargetDays, isoWeekday(today))
 		habits[i].CurrentStreak, _ = computeStreak(habitLogs, habits[i].TargetDays, today)
 	}
 
@@ -627,13 +631,15 @@ func (s *HabitService) getStats(ctx context.Context, userID string, today time.T
 
 	today = calendarDay(today)
 	weekStart := today.AddDate(0, 0, -6)
-	stats.TotalHabits = len(habits)
-
 	var scheduled7d, done7d int
 	for _, h := range habits {
 		habitLogs := logs[h.ID]
-		if h.CompletedToday {
-			stats.CompletedToday++
+		// The day's count only includes habits planned for today.
+		if h.ScheduledToday {
+			stats.TotalHabits++
+			if h.CompletedToday {
+				stats.CompletedToday++
+			}
 		}
 
 		current, best := computeStreak(habitLogs, h.TargetDays, today)

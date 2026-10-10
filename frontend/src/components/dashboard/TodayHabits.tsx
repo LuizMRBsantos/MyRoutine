@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
 import type { Habit } from '@/types/habit'
 import { useCheckIn, useUndoCheckIn } from '@/hooks/useHabits'
+import { useCheckInDock } from '@/store/checkInDock'
 import styles from './TodayHabits.module.css'
 
 interface TodayHabitsProps {
@@ -12,16 +13,26 @@ interface TodayHabitsProps {
   isError?: boolean
 }
 
-export function TodayHabits({ habits, isLoading, isError = false }: TodayHabitsProps) {
+export function TodayHabits({ habits: allHabits, isLoading, isError = false }: TodayHabitsProps) {
   const checkIn = useCheckIn()
   const undoCheckIn = useUndoCheckIn()
+  const openDock = useCheckInDock(s => s.open)
+
+  // Só os hábitos de hoje (ex.: "correr" de terça e quinta não aparece na
+  // quarta). Um feito fora do dia continua visível, para poder desfazer.
+  const habits = allHabits.filter(h => h.scheduled_today || h.completed_today)
 
   const handleToggle = (habit: Habit) => {
     if (habit.completed_today) {
       undoCheckIn.mutate({ id: habit.id })
-    } else {
-      checkIn.mutate({ id: habit.id })
+      return
     }
+    // Timer e medidas precisam de mais que um toque: abrem a janelinha.
+    if (habit.check_type === 'timed' || habit.check_type === 'metric') {
+      openDock(habit.id)
+      return
+    }
+    checkIn.mutate({ id: habit.id })
   }
 
   if (isLoading) {
@@ -41,9 +52,9 @@ export function TodayHabits({ habits, isLoading, isError = false }: TodayHabitsP
   }
 
   if (habits.length === 0) {
-    return (
-      <p className={styles.empty}>Nenhum hábito para hoje. <Link to="/habits">Criar hábito →</Link></p>
-    )
+    return allHabits.length > 0
+      ? <p className={styles.empty}>Nenhum hábito programado para hoje.</p>
+      : <p className={styles.empty}>Nenhum hábito para hoje. <Link to="/habits">Criar hábito →</Link></p>
   }
 
   const completedCount = habits.filter(h => h.completed_today).length

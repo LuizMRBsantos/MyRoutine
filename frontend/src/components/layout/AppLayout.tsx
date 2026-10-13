@@ -5,33 +5,34 @@ import { useAuthStore } from '@/store/authStore'
 import api from '@/services/api'
 import { forgetThisDeviceOnServer, syncThisDevice } from '@/lib/push'
 import { CheckInDock } from '@/components/habits/CheckInDock'
+import { Icon, type IconName } from '@/components/ui/Icon'
 import styles from './AppLayout.module.css'
 
 interface NavItem {
   to: string
-  icon: string
+  icon: IconName
   label: string
   // Rótulo da barra inferior do celular, onde o espaço é curto.
   short?: string
 }
 
 const navItems: NavItem[] = [
-  { to: '/', icon: '⊞', label: 'Dashboard', short: 'Início' },
+  { to: '/', icon: 'home', label: 'Início', short: 'Início' },
   // O diário é a principal porta de entrada de dados: fica logo no começo.
-  { to: '/diario', icon: '✎', label: 'Diário' },
-  { to: '/habits', icon: '✦', label: 'Hábitos' },
-  { to: '/planner', icon: '📅', label: 'Planner' },
-  { to: '/finance', icon: '◈', label: 'Finanças' },
-  { to: '/saude', icon: '◉', label: 'Saúde' },
-  { to: '/studies', icon: '◆', label: 'Estudos' },
+  { to: '/diario', icon: 'journal', label: 'Diário' },
+  { to: '/habits', icon: 'habits', label: 'Hábitos' },
+  { to: '/planner', icon: 'planner', label: 'Planner' },
+  { to: '/finance', icon: 'finance', label: 'Finanças' },
+  { to: '/saude', icon: 'health', label: 'Saúde' },
+  { to: '/studies', icon: 'studies', label: 'Estudos' },
   // Revisão semanal: só por escolha, sem contador (habit-review-flow).
-  { to: '/revisao', icon: '↺', label: 'Revisão' },
-  { to: '/conta', icon: '⚙', label: 'Minha conta' },
+  { to: '/revisao', icon: 'review', label: 'Revisão' },
+  { to: '/conta', icon: 'account', label: 'Minha conta' },
 ]
 
 // Só aparece para administradores (convites e links de redefinição de senha).
 const adminNavItems: NavItem[] = [
-  { to: '/acessos', icon: '✉', label: 'Acessos' },
+  { to: '/acessos', icon: 'invites', label: 'Acessos' },
 ]
 
 // No celular, a barra inferior mostra os 4 módulos mais usados + "Mais";
@@ -98,7 +99,7 @@ export function AppLayout() {
                 `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
               }
             >
-              <span className={styles.navIcon} aria-hidden="true">{item.icon}</span>
+              <span className={styles.navIcon} aria-hidden="true"><Icon name={item.icon} /></span>
               <span className={styles.navLabel}>{item.label}</span>
             </NavLink>
           ))}
@@ -116,7 +117,7 @@ export function AppLayout() {
             </div>
           </div>
           <button className={styles.logoutBtn} onClick={handleLogout} title="Sair" aria-label="Sair">
-            ⎋
+            <Icon name="logout" size={18} />
           </button>
         </div>
       </aside>
@@ -130,7 +131,7 @@ export function AppLayout() {
             end={item.to === '/'}
             className={({ isActive }) => `${styles.tab} ${isActive ? styles.tabActive : ''}`}
           >
-            <span className={styles.tabIcon} aria-hidden="true">{item.icon}</span>
+            <span className={styles.tabIcon} aria-hidden="true"><Icon name={item.icon} size={22} /></span>
             <span className={styles.tabLabel}>{item.short ?? item.label}</span>
           </NavLink>
         ))}
@@ -141,7 +142,7 @@ export function AppLayout() {
           aria-controls="more-sheet"
           onClick={() => setMoreOpen(open => !open)}
         >
-          <span className={styles.tabIcon} aria-hidden="true">⋯</span>
+          <span className={styles.tabIcon} aria-hidden="true"><Icon name="more" size={22} /></span>
           <span className={styles.tabLabel}>Mais</span>
         </button>
       </nav>
@@ -163,12 +164,12 @@ export function AppLayout() {
                 to={item.to}
                 className={({ isActive }) => `${styles.navItem} ${isActive ? styles.navItemActive : ''}`}
               >
-                <span className={styles.navIcon} aria-hidden="true">{item.icon}</span>
+                <span className={styles.navIcon} aria-hidden="true"><Icon name={item.icon} /></span>
                 <span className={styles.navLabel}>{item.label}</span>
               </NavLink>
             ))}
             <button type="button" className={`${styles.navItem} ${styles.sheetLogout}`} onClick={handleLogout}>
-              <span className={styles.navIcon} aria-hidden="true">⎋</span>
+              <span className={styles.navIcon} aria-hidden="true"><Icon name="logout" /></span>
               <span className={styles.navLabel}>Sair</span>
             </button>
           </div>

@@ -127,7 +127,7 @@
 .sessionMeta {
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
-  text-transform: capitalize;
+  text-transform: none;
 }
 
 .deleteBtn {
@@ -198,3 +198,6 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Português: só a primeira letra maiúscula ("Segunda-feira, 12 de outubro"). */
+.sessionMeta::first-letter { text-transform: uppercase; }

@@ -34,7 +34,7 @@
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
-  text-transform: capitalize;
+  text-transform: none;
   min-width: 160px;
   text-align: center;
 }
@@ -121,3 +121,6 @@
   align-items: center;
   gap: var(--space-2);
 }
+
+/* Português: só a primeira letra maiúscula ("Segunda-feira, 12 de outubro"). */
+.monthLabel::first-letter { text-transform: uppercase; }

@@ -72,7 +72,7 @@
 
 .dayCellToday {
   border: 1.5px solid var(--color-accent);
-  background: rgba(0, 113, 227, 0.05);
+  background: var(--color-accent-light);
 }
 
 .dayCellEmpty {
@@ -102,9 +102,9 @@
 
 .dayNumberToday {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-accent);
   font-weight: var(--font-weight-bold);
-  box-shadow: 0 0 8px rgba(0, 113, 227, 0.5);
+  box-shadow: none;
 }
 
 .addTaskIcon {

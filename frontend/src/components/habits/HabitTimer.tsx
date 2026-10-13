@@ -59,13 +59,13 @@ export function HabitTimer({ habitId, color, targetMinutes, onComplete, onCancel
         {/* Controls */}
         <div className={styles.controls}>
           {!timer.isRunning && !timer.isCompleted && (
-            <button className={styles.controlBtn} style={{ background: color, color: '#fff' }} onClick={timer.start}>
+            <button className={styles.controlBtn} style={{ background: color, color: '#1B1B19' }} onClick={timer.start}>
               ▶ Iniciar
             </button>
           )}
           
           {timer.isRunning && (
-            <button className={styles.controlBtn} style={{ background: '#FF9F0A', color: '#fff' }} onClick={timer.pause}>
+            <button className={styles.controlBtn} style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-primary)' }} onClick={timer.pause}>
               ⏸ Pausar
             </button>
           )}
@@ -77,7 +77,7 @@ export function HabitTimer({ habitId, color, targetMinutes, onComplete, onCancel
           )}
 
           {timer.isCompleted && (
-            <button className={styles.controlBtn} style={{ background: '#34C759', color: '#fff' }} onClick={handleComplete}>
+            <button className={styles.controlBtn} style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }} onClick={handleComplete}>
               ✓ Concluir Hábito
             </button>
           )}

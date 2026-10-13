@@ -77,7 +77,7 @@ func (h *HabitHandler) Create(w http.ResponseWriter, r *http.Request) {
 		req.Icon = "⭐"
 	}
 	if req.Color == "" {
-		req.Color = "#0071E3"
+		req.Color = "#7FB59A" // sálvia, a cor padrão da paleta nova
 	}
 	if req.Frequency == "" {
 		req.Frequency = "daily"

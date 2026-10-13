@@ -437,6 +437,22 @@ o CI (Trivy).
 mês, sem placar ou porcentagem. Migração 019 (`weekly_goals`, RLS), entra na
 exportação LGPD.
 
+**Redesenho "caderno calmo" (pedido em 12/10):** proposta aprovada no quadro
+https://claude.ai/artifact/87GdzyVX7SDSSN6CpCRrwb (privado). Quatro entregas:
+1. ✅ Base: paleta neutra quente + verde-sálvia como única cor de ação (escuro
+   padrão, claro segue o aparelho); fontes próprias (Geist, Geist Mono,
+   Instrument Serif nos títulos) via @fontsource; ícones desenhados num só
+   traço (`components/ui/Icon.tsx`); datas em português ("Segunda-feira, 12 de
+   outubro"); logo sem degradê; cartões sólidos e `.glass` só para o que flutua.
+   Migração 020 converte as cores saturadas antigas de hábitos/metas/tarefas
+   para a paleta nova.
+2. ⏳ Início: agenda + hábitos de hoje lado a lado, sem anel de %/🔥/barra,
+   metas e "semana em uma linha" ao lado, calendário legível, mapa de 90 dias
+   discreto, barra de abas de vidro.
+3. ⏳ Hábitos e Planner no novo padrão (sem cartões de números nem barras
+   coloridas laterais; semana com título e horário nos blocos).
+4. ⏳ Diário, Finanças, Saúde, Estudos, Conta e Entrar.
+
 ### Depois do lançamento (ideias registradas)
 
 - **Widget do Mac (pedido em 08/10).** Mostra os hábitos de hoje, com

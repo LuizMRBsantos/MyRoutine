@@ -1,50 +1,60 @@
-/* A fonte Inter é servida pelo próprio app (@fontsource-variable/inter, importada
-   em main.tsx): funciona offline no PWA, não envia o IP de ninguém ao Google e
-   cabe numa CSP só com 'self'. */
+/* As fontes são servidas pelo próprio app (@fontsource, importadas em
+   main.tsx): funcionam offline no PWA, não enviam o IP de ninguém ao Google e
+   cabem numa CSP só com 'self'. */
 
 /* ============================================================
-   MYROUTINE — Design System
-   Apple-inspired: espaçamento generoso, tipografia como base,
-   glassmorphism sutil, micro-animações fluidas
+   MYROUTINE — Design System "caderno calmo" (proposta de 12/10/2026)
+   Uma cor só para ação (verde-sálvia), neutros quentes, sem vermelho para
+   ausência de dado. Geist na interface, Instrument Serif nos títulos de
+   página, Geist Mono em horários e valores.
    ============================================================ */
 
-/* ─── Design Tokens ─────────────────────────────────────────── */
+/* ─── Design Tokens — claro ─────────────────────────────────── */
 :root {
-  /* Colors — Light Mode */
-  --color-bg:           #F5F5F7;
-  --color-bg-elevated:  #FFFFFF;
-  --color-surface:      rgba(255, 255, 255, 0.72);
-  --color-surface-2:    rgba(255, 255, 255, 0.5);
-  --color-border:       rgba(0, 0, 0, 0.08);
-  --color-border-strong: rgba(0, 0, 0, 0.15);
+  color-scheme: light;
 
-  --color-text-primary:   #1D1D1F;
-  --color-text-secondary: #6E6E73;
-  --color-text-tertiary:  #AEAEB2;
+  --color-bg:           #F6F5F1;
+  --color-bg-elevated:  #FFFFFF;
+  /* Cartões são sólidos; o vidro fica só no que flutua (.glass). */
+  --color-surface:      #FFFFFF;
+  --color-surface-2:    #EFEEE9;
+  --color-glass:        rgba(255, 255, 255, 0.74);
+  --color-border:       #E3E1DA;
+  --color-border-strong: #D6D3CA;
+
+  --color-text-primary:   #1B1B19;
+  --color-text-secondary: #5F5E58;
+  --color-text-tertiary:  #8C8B84;
   --color-text-inverse:   #FFFFFF;
 
-  --color-accent:         #0071E3;
-  --color-accent-hover:   #0077ED;
-  --color-accent-light:   rgba(0, 113, 227, 0.12);
+  --color-accent:         #2E6B55;
+  --color-accent-hover:   #255946;
+  --color-accent-light:   #E3EEE8;
+  --color-on-accent:      #FFFFFF;
 
-  --color-success:        #34C759;
-  --color-success-light:  rgba(52, 199, 89, 0.12);
-  --color-warning:        #FF9F0A;
-  --color-warning-light:  rgba(255, 159, 10, 0.12);
-  --color-error:          #FF3B30;
-  --color-error-light:    rgba(255, 59, 48, 0.12);
+  /* "Feito" usa a mesma cor de ação; não há um verde à parte. */
+  --color-success:        #2E6B55;
+  --color-success-light:  #E3EEE8;
+  /* Atenção: só para sinal real, sempre com texto junto. */
+  --color-warning:        #9A6516;
+  --color-warning-light:  #F6EBD6;
+  /* Só para ação destrutiva e erro de formulário — nunca para dia sem registro. */
+  --color-error:          #A34A33;
+  --color-error-light:    #F5E4DE;
 
-  /* Habit accent colors */
-  --color-habit-blue:     #0071E3;
-  --color-habit-green:    #34C759;
-  --color-habit-orange:   #FF9F0A;
-  --color-habit-red:      #FF3B30;
-  --color-habit-purple:   #AF52DE;
-  --color-habit-pink:     #FF2D55;
-  --color-habit-teal:     #5AC8FA;
+  /* Cores de hábito: mesmo brilho, pouca saturação */
+  --color-habit-blue:     #7EA6D8;
+  --color-habit-green:    #7FB59A;
+  --color-habit-orange:   #D9A85B;
+  --color-habit-red:      #D894A8;
+  --color-habit-purple:   #A99AD6;
+  --color-habit-pink:     #D894A8;
+  --color-habit-teal:     #6FB0B5;
 
   /* Typography */
-  --font-family:   'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  --font-family:   'Geist Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display:  'Instrument Serif', Georgia, 'Times New Roman', serif;
+  --font-mono:     'Geist Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
   --font-size-xs:  0.75rem;    /* 12px */
   --font-size-sm:  0.875rem;   /* 14px */
   --font-size-md:  1rem;       /* 16px */
@@ -58,7 +68,7 @@
   --font-weight-regular: 400;
   --font-weight-medium:  500;
   --font-weight-semibold: 600;
-  --font-weight-bold:    700;
+  --font-weight-bold:    600;
 
   --line-height-tight:  1.2;
   --line-height-normal: 1.5;
@@ -77,66 +87,71 @@
   --space-16: 4rem;      /* 64px */
   --space-20: 5rem;      /* 80px */
 
-  /* Border Radius */
-  --radius-sm:   8px;
-  --radius-md:   12px;
-  --radius-lg:   16px;
-  --radius-xl:   20px;
-  --radius-2xl:  24px;
+  /* Border Radius — mais justo por dentro, mais suave por fora */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --radius-xl:   16px;
+  --radius-2xl:  22px;
   --radius-full: 9999px;
 
-  /* Shadows — Apple depth */
-  --shadow-sm:   0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md:   0 4px 16px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
-  --shadow-lg:   0 8px 32px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.06);
-  --shadow-xl:   0 20px 60px rgba(0,0,0,0.12), 0 8px 16px rgba(0,0,0,0.08);
+  /* Sombras quentes e baixas */
+  --shadow-sm:   0 1px 2px rgba(60, 50, 30, 0.05);
+  --shadow-md:   0 1px 2px rgba(60, 50, 30, 0.05), 0 4px 12px rgba(60, 50, 30, 0.04);
+  --shadow-lg:   0 10px 30px rgba(60, 50, 30, 0.12);
+  --shadow-xl:   0 18px 50px rgba(60, 50, 30, 0.16);
 
   /* Blur */
   --blur-sm:  8px;
   --blur-md:  16px;
-  --blur-lg:  32px;
+  --blur-lg:  24px;
 
-  /* Transitions */
-  --transition-fast:   120ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow:   300ms cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-spring: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Movimento curto: sai rápido, freia no fim */
+  --ease-out:          cubic-bezier(0.22, 1, 0.36, 1);
+  --transition-fast:   150ms var(--ease-out);
+  --transition-normal: 200ms var(--ease-out);
+  --transition-slow:   280ms var(--ease-out);
+  --transition-spring: 320ms cubic-bezier(0.34, 1.3, 0.64, 1);
 
   /* Layout */
-  --sidebar-width:  260px;
+  --sidebar-width:  248px;
   --header-height:  64px;
-  --content-max-w:  1200px;
+  --content-max-w:  1120px;
 }
 
-/* ─── Dark Mode ─────────────────────────────────────────────── */
+/* ─── Design Tokens — escuro (padrão do produto, segue o aparelho) ── */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-bg:           #000000;
-    --color-bg-elevated:  #1C1C1E;
-    --color-surface:      rgba(44, 44, 46, 0.85);
-    --color-surface-2:    rgba(44, 44, 46, 0.5);
-    --color-border:       rgba(255, 255, 255, 0.08);
-    --color-border-strong: rgba(255, 255, 255, 0.15);
+    color-scheme: dark;
 
-    --color-text-primary:   #F5F5F7;
-    --color-text-secondary: #98989D;
-    --color-text-tertiary:  #636366;
+    --color-bg:           #121211;
+    --color-bg-elevated:  #1A1A18;
+    --color-surface:      #1A1A18;
+    --color-surface-2:    #232320;
+    --color-glass:        rgba(34, 34, 31, 0.72);
+    --color-border:       #2A2A27;
+    --color-border-strong: #3A3A36;
 
-    --color-accent:         #0A84FF;
-    --color-accent-hover:   #409CFF;
-    --color-accent-light:   rgba(10, 132, 255, 0.15);
+    --color-text-primary:   #EDEDE8;
+    --color-text-secondary: #A8A79F;
+    --color-text-tertiary:  #75746D;
 
-    --color-success:       #30D158;
-    --color-success-light: rgba(48, 209, 88, 0.15);
-    --color-warning:       #FFD60A;
-    --color-warning-light: rgba(255, 214, 10, 0.15);
-    --color-error:         #FF453A;
-    --color-error-light:   rgba(255, 69, 58, 0.15);
+    --color-accent:         #8CC3A8;
+    --color-accent-hover:   #A3D1BA;
+    --color-accent-light:   rgba(140, 195, 168, 0.14);
+    --color-on-accent:      #0F241B;
 
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
-    --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
-    --shadow-lg: 0 8px 32px rgba(0,0,0,0.5);
-    --shadow-xl: 0 20px 60px rgba(0,0,0,0.6);
+    --color-success:       #8CC3A8;
+    --color-success-light: rgba(140, 195, 168, 0.14);
+    --color-warning:       #E3B062;
+    --color-warning-light: rgba(227, 176, 98, 0.12);
+    --color-error:         #E08A72;
+    --color-error-light:   rgba(224, 138, 114, 0.14);
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.35);
+    --shadow-xl: 0 18px 50px rgba(0, 0, 0, 0.45);
   }
 }
 
@@ -163,10 +178,12 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 #root {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -183,14 +200,38 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--color-text-primary);
 }
 
-/* ─── Glass Card Component ───────────────────────────────────── */
+/* Títulos de página e a saudação: a voz de caderno. A serifa só tem peso
+   normal; font-synthesis evita o "negrito falso" do navegador. */
+h1 {
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-regular);
+  font-synthesis: none;
+  letter-spacing: -0.005em;
+}
+
+/* Horários, valores e contagens alinham na coluna. */
+.tabular,
+time {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Cartão ──────────────────────────────────────────────────── */
+/* O nome ficou por compatibilidade: o cartão agora é sólido e legível. */
 .glass-card {
   background: var(--color-surface);
-  backdrop-filter: blur(var(--blur-md));
-  -webkit-backdrop-filter: blur(var(--blur-md));
-  border: 1px solid var(--color-border);
+  border: 1px solid transparent;
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Vidro de verdade: só para o que flutua (barra de abas, janelinha do
+   timer, menus). */
+.glass {
+  background: var(--color-glass);
+  backdrop-filter: blur(var(--blur-lg)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--blur-lg)) saturate(150%);
+  box-shadow: inset 0 0 0 1px var(--color-border), var(--shadow-lg);
 }
 
 /* ─── Button Base ────────────────────────────────────────────── */
@@ -200,12 +241,13 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-5);
+  min-height: 40px;
   border: none;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   line-height: 1;
-  transition: all var(--transition-fast);
+  transition: background-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
   white-space: nowrap;
   user-select: none;
 }
@@ -218,16 +260,14 @@ h1, h2, h3, h4, h5, h6 {
   pointer-events: none;
 }
 
+.btn:active { transform: scale(0.98); }
+.btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
 .btn-primary {
   background: var(--color-accent);
-  color: #fff;
+  color: var(--color-on-accent);
 }
-.btn-primary:hover {
-  background: var(--color-accent-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 113, 227, 0.35);
-}
-.btn-primary:active { transform: translateY(0); }
+.btn-primary:hover { background: var(--color-accent-hover); }
 
 .btn-ghost {
   background: transparent;
@@ -239,19 +279,18 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--color-error-light);
   color: var(--color-error);
 }
-.btn-danger:hover { background: var(--color-error); color: #fff; }
+.btn-danger:hover { background: var(--color-error); color: var(--color-bg); }
 
 /* ─── Input ──────────────────────────────────────────────────── */
 .input {
   width: 100%;
   padding: var(--space-3) var(--space-4);
   background: var(--color-bg-elevated);
-  border: 1.5px solid var(--color-border);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   font-size: var(--font-size-md);
   color: var(--color-text-primary);
   outline: none;
-  color-scheme: dark;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 .input:focus {
@@ -280,7 +319,6 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .input::-webkit-calendar-picker-indicator {
-  filter: invert(0.8);
   cursor: pointer;
   opacity: 0.6;
   transition: opacity var(--transition-fast);
@@ -297,6 +335,16 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: var(--radius-full);
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-text-tertiary); }
+
+/* Quem pede menos movimento no aparelho recebe menos movimento. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
 
 /* ─── Animations ─────────────────────────────────────────────── */
 @keyframes fadeIn {

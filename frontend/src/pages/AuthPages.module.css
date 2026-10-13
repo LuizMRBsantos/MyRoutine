@@ -20,13 +20,13 @@
 
 .sphere1 {
   width: 400px; height: 400px;
-  background: radial-gradient(circle, rgba(0, 113, 227, 0.2), transparent 70%);
+  background: transparent;
   top: -100px; left: -100px;
 }
 
 .sphere2 {
   width: 350px; height: 350px;
-  background: radial-gradient(circle, rgba(88, 86, 214, 0.2), transparent 70%);
+  background: transparent;
   bottom: -80px; right: -80px;
 }
 
@@ -51,16 +51,17 @@
 
 .logoMark {
   width: 52px; height: 52px;
-  background: linear-gradient(135deg, var(--color-accent), #5856D6);
+  background: var(--color-accent);
   border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
+  color: var(--color-on-accent);
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: var(--font-weight-regular);
+  line-height: 1;
   margin: 0 auto var(--space-5);
-  box-shadow: 0 8px 24px rgba(0, 113, 227, 0.35);
 }
 
 .title {
@@ -115,8 +116,8 @@
   display: inline-block;
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: #fff;
+  border: 2px solid color-mix(in srgb, var(--color-on-accent) 30%, transparent);
+  border-top-color: var(--color-on-accent);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }

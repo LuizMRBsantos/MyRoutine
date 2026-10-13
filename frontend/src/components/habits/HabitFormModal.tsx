@@ -5,7 +5,8 @@ import { normalizeHabitPayload, validateHabit } from '@/lib/habitSchema'
 import styles from './HabitFormModal.module.css'
 
 const ICONS = ['⭐', '🔥', '💪', '📚', '🧘', '🏃', '💧', '🌱', '🎯', '✍️', '🙏', '💤', '🎵', '🥗', '🧠']
-const COLORS = ['#0071E3', '#34C759', '#FF9F0A', '#FF3B30', '#AF52DE', '#FF2D55', '#5AC8FA', '#5856D6']
+// Mesmo brilho, pouca saturação: a cor do hábito é um detalhe, não um cartão.
+const COLORS = ['#7FB59A', '#7EA6D8', '#D9A85B', '#A99AD6', '#D894A8', '#6FB0B5', '#BFAE8E']
 
 const TIME_OPTIONS = [
   { key: 'morning', label: '☀️ Manhã' },
@@ -68,7 +69,7 @@ function initialForm(habit?: Habit): CreateHabitInput {
     }
   }
   return {
-    name: '', icon: '⭐', color: '#0071E3',
+    name: '', icon: '⭐', color: '#7FB59A',
     frequency: 'daily', target_days: [1, 2, 3, 4, 5, 6, 7],
     time_of_day: 'anytime', category: 'general', check_type: 'simple',
   }

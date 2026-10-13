@@ -15,7 +15,7 @@
 .dateLabel {
   font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
-  text-transform: capitalize;
+  text-transform: none;
   margin-bottom: var(--space-1);
 }
 
@@ -29,8 +29,19 @@
 /* ─── Stats ──────────────────────────────────────── */
 .statsGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  /* minmax(0, …): os cartões encolhem em vez de alargar a página no celular. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-4);
+}
+
+@media (max-width: 560px) {
+  .statsGrid { gap: var(--space-2); }
+  .statsGrid .statCard {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
 }
 
 .statCard {
@@ -392,7 +403,7 @@
 }
 
 .metricRemove:hover {
-  color: #FF3B30;
+  color: var(--color-error);
 }
 
 .metricAdd {
@@ -445,3 +456,6 @@
   font-size: var(--font-size-sm) !important;
   padding: 6px 10px !important;
 }
+
+/* Português: só a primeira letra maiúscula ("Segunda-feira, 12 de outubro"). */
+.dateLabel::first-letter { text-transform: uppercase; }

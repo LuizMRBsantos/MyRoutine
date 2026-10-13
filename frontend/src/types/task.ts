@@ -122,12 +122,12 @@ export interface CreateGoalInput {
 // ─── UI Helpers ───────────────────────────────────────────
 
 export const CATEGORY_META: Record<TaskCategory, { label: string; icon: string; color: string }> = {
-  wake_up:     { label: 'Acordar',      icon: '🌅', color: '#FF9F0A' },
-  exercise:    { label: 'Exercício',    icon: '🏃', color: '#34C759' },
-  study:       { label: 'Estudo',       icon: '📚', color: '#0071E3' },
-  work:        { label: 'Trabalho',     icon: '💻', color: '#5856D6' },
-  exam:        { label: 'Prova',        icon: '📝', color: '#FF3B30' },
-  appointment: { label: 'Compromisso', icon: '📅', color: '#5AC8FA' },
+  wake_up:     { label: 'Acordar',      icon: '🌅', color: '#BFAE8E' },
+  exercise:    { label: 'Exercício',    icon: '🏃', color: '#7FB59A' },
+  study:       { label: 'Estudo',       icon: '📚', color: '#7EA6D8' },
+  work:        { label: 'Trabalho',     icon: '💻', color: '#A99AD6' },
+  exam:        { label: 'Prova',        icon: '📝', color: '#D9A85B' },
+  appointment: { label: 'Compromisso', icon: '📅', color: '#6FB0B5' },
   other:       { label: 'Outro',        icon: '✦',  color: '#8E8E93' },
 }
 

@@ -5,7 +5,8 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import type { MonthlyGoal } from '@/types/task'
 import styles from './MonthlyGoalsPanel.module.css'
 
-const GOAL_COLORS = ['#0071E3', '#34C759', '#FF9F0A', '#AF52DE', '#FF2D55', '#5AC8FA']
+// Paleta de hábitos/metas: mesmo brilho, pouca saturação (index.css).
+const GOAL_COLORS = ['#7FB59A', '#7EA6D8', '#D9A85B', '#A99AD6', '#D894A8', '#6FB0B5', '#BFAE8E']
 
 interface MonthlyGoalsPanelProps {
   viewDate: Date

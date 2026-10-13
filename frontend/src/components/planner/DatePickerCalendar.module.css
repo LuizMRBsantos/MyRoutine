@@ -33,7 +33,7 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
-  text-transform: capitalize;
+  text-transform: none;
 }
 
 .navGroup {
@@ -138,6 +138,9 @@
   background: var(--color-accent) !important;
   color: #FFFFFF !important;
   font-weight: var(--font-weight-bold);
-  box-shadow: 0 2px 8px rgba(0, 113, 227, 0.35);
+  box-shadow: none;
   transform: scale(1.08);
 }
+
+/* Português: só a primeira letra maiúscula ("Segunda-feira, 12 de outubro"). */
+.monthTitle::first-letter { text-transform: uppercase; }

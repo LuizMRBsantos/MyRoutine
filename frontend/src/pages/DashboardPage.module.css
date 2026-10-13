@@ -30,7 +30,7 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
   margin-top: var(--space-2);
-  text-transform: capitalize;
+  text-transform: none;
 }
 
 /* ─── Completion Ring ─────────────────────────────────── */
@@ -172,3 +172,6 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Português: só a primeira letra maiúscula ("Segunda-feira, 12 de outubro"). */
+.date::first-letter { text-transform: uppercase; }

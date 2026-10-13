@@ -182,8 +182,8 @@
 .examBadge {
   font-size: 9px;
   font-weight: var(--font-weight-bold);
-  color: #FF3B30;
-  background: #FF3B3015;
+  color: var(--color-warning);
+  background: var(--color-warning-light);
   padding: 1px 4px;
   border-radius: 4px;
   width: fit-content;
@@ -234,7 +234,7 @@
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
-  text-transform: capitalize;
+  text-transform: none;
 }
 
 .addGoalForm {
@@ -330,3 +330,7 @@
 
 .goalCard:hover .goalDeleteBtn { opacity: 1; }
 .goalDeleteBtn:hover { color: var(--color-error); }
+
+/* Português: só a primeira letra maiúscula ("Segunda-feira, 12 de outubro"). */
+.goalsTitle::first-letter { text-transform: uppercase; }
+.navLabel::first-letter { text-transform: uppercase; }

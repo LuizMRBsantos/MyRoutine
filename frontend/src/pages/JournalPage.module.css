@@ -22,7 +22,7 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-tertiary);
   margin-top: var(--space-1);
-  text-transform: capitalize;
+  text-transform: none;
 }
 
 .dayNav {
@@ -163,3 +163,6 @@
   .layout { grid-template-columns: 1fr; }
   .editor { min-height: 40vh; }
 }
+
+/* Português: só a primeira letra maiúscula ("Segunda-feira, 12 de outubro"). */
+.dateLabel::first-letter { text-transform: uppercase; }

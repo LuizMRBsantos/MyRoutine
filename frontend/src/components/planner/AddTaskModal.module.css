@@ -65,7 +65,7 @@
 .dateLabel {
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
-  text-transform: capitalize;
+  text-transform: none;
   margin-top: 2px;
 }
 
@@ -145,7 +145,7 @@
 
 .dateText {
   font-weight: var(--font-weight-medium);
-  text-transform: capitalize;
+  text-transform: none;
   color: var(--color-text-primary);
 }
 
@@ -226,7 +226,7 @@
   color: var(--color-accent);
   background: var(--color-accent-light);
   font-weight: var(--font-weight-semibold);
-  box-shadow: 0 2px 8px rgba(0, 113, 227, 0.12);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ─── Textarea ───────────────────────────────────── */
@@ -259,3 +259,7 @@
   width: 16px;
   height: 16px;
 }
+
+/* Português: só a primeira letra maiúscula ("Segunda-feira, 12 de outubro"). */
+.dateLabel::first-letter { text-transform: uppercase; }
+.dateText::first-letter { text-transform: uppercase; }

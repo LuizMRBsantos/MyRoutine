@@ -121,7 +121,7 @@
 }
 
 .checkBtnDone {
-  color: white;
+  color: #1B1B19; /* fundo é a cor (clara) do hábito */
   border: none;
 }
 
@@ -206,7 +206,7 @@
   border: none;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
-  color: white;
+  color: #1B1B19; /* fundo é a cor (clara) do hábito */
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-full);
   transition: opacity var(--transition-fast);

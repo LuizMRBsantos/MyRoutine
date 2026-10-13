@@ -277,7 +277,7 @@
 }
 
 .metricRemove:hover {
-  color: #FF3B30;
+  color: var(--color-error);
 }
 
 .metricAdd {

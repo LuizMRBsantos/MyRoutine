@@ -147,7 +147,7 @@
 .submitManualBtn {
   padding: var(--space-2);
   border-radius: var(--radius-sm);
-  color: #fff;
+  color: #1B1B19; /* fundo é a cor (clara) do hábito */
   font-weight: var(--font-weight-medium);
   font-size: var(--font-size-sm);
   border: none;

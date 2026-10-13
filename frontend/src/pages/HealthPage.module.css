@@ -142,7 +142,7 @@
 .volumeLabel {
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
-  text-transform: capitalize;
+  text-transform: none;
 }
 
 .volumeTrack {
@@ -189,7 +189,7 @@
 
 .weightDate {
   color: var(--color-text-tertiary);
-  text-transform: capitalize;
+  text-transform: none;
 }
 
 .weightValue {
@@ -205,3 +205,7 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* Português: só a primeira letra maiúscula ("Segunda-feira, 12 de outubro"). */
+.volumeLabel::first-letter { text-transform: uppercase; }
+.weightDate::first-letter { text-transform: uppercase; }

@@ -114,8 +114,8 @@
 
 .status_planned     { background: var(--color-bg-secondary); color: var(--color-text-tertiary); }
 .status_in_progress { /* dynamic color via inline style */ }
-.status_done        { background: #34C75922; color: #34C759; }
-.status_reviewed    { background: #5856D622; color: #5856D6; }
+.status_done        { background: var(--color-success-light); color: var(--color-success); }
+.status_reviewed    { background: var(--color-surface-2); color: var(--color-text-secondary); }
 
 .advanceBtn {
   width: 30px;

@@ -41,7 +41,7 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
-  text-transform: capitalize;
+  text-transform: none;
 }
 
 .row {
@@ -113,3 +113,6 @@
   color: var(--color-text-tertiary);
   line-height: 1.5;
 }
+
+/* Português: só a primeira letra maiúscula ("Segunda-feira, 12 de outubro"). */
+.dayTitle::first-letter { text-transform: uppercase; }

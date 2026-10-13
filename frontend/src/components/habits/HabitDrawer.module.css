@@ -189,7 +189,7 @@
   color: var(--color-text-tertiary);
   font-size: var(--font-size-xs);
   min-width: 52px;
-  text-transform: capitalize;
+  text-transform: none;
 }
 
 .logDetail {
@@ -202,3 +202,6 @@
   font-size: var(--font-size-xs);
   font-style: italic;
 }
+
+/* Português: só a primeira letra maiúscula ("Segunda-feira, 12 de outubro"). */
+.logDate::first-letter { text-transform: uppercase; }

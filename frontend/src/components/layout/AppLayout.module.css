@@ -7,9 +7,8 @@
 .sidebar {
   width: var(--sidebar-width);
   min-height: 100vh;
-  background: var(--color-surface);
-  backdrop-filter: blur(var(--blur-lg));
-  -webkit-backdrop-filter: blur(var(--blur-lg));
+  /* Mesmo fundo da página: uma pele só, separada por uma linha. */
+  background: var(--color-bg);
   border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
@@ -30,15 +29,16 @@
 .logoMark {
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, var(--color-accent), #5856D6);
+  background: var(--color-accent);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
-  font-weight: var(--font-weight-bold);
-  font-size: var(--font-size-lg);
-  box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
+  color: var(--color-on-accent);
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-regular);
+  font-size: 1.5rem;
+  line-height: 1;
 }
 
 .logoText {
@@ -86,9 +86,10 @@
 }
 
 .navIcon {
-  font-size: 1rem;
   width: 20px;
-  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .navLabel { flex: 1; }
@@ -125,12 +126,12 @@
   width: 32px;
   height: 32px;
   min-width: 32px;
-  background: linear-gradient(135deg, var(--color-accent), #5856D6);
+  background: var(--color-surface-2);
+  color: var(--color-text-primary);
   border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
 }
@@ -268,7 +269,7 @@
 
   .tabActive { color: var(--color-accent); }
 
-  .tabIcon { font-size: 1.25rem; line-height: 1; }
+  .tabIcon { display: inline-flex; line-height: 1; }
 
   .tabLabel {
     font-size: 0.6875rem; /* 11px, como a tab bar do iOS */

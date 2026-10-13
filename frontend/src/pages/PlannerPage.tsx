@@ -119,7 +119,7 @@ export function PlannerPage() {
       {/* ── Navigation ── */}
       <div className={styles.navRow}>
         <button className={styles.navBtn} onClick={() => navigate(-1)}>‹</button>
-        <span className={styles.navLabel} style={{ textTransform: 'capitalize' }}>{navLabel()}</span>
+        <span className={styles.navLabel}>{navLabel()}</span>
         <button className={styles.navBtn} onClick={() => navigate(1)}>›</button>
         {!isToday && tab === 'Hoje' && (
           <button className={styles.todayBtn} onClick={() => setViewDate(today)}>Hoje</button>
@@ -186,7 +186,7 @@ export function PlannerPage() {
                   return (
                     <div key={day.date} className={`${styles.weekDay} ${day.isToday ? styles.weekDayToday : ''}`}>
                       <div className={styles.weekDayHeader}>
-                        <span className={styles.weekDayLabel} style={{ textTransform: 'capitalize' }}>{day.label}</span>
+                        <span className={styles.weekDayLabel}>{day.label}</span>
                         {hasExam && <span className={styles.examBadge}>📝 Prova</span>}
                       </div>
                       <div className={styles.weekTaskList}>

@@ -453,6 +453,13 @@ https://claude.ai/artifact/87GdzyVX7SDSSN6CpCRrwb (privado). Quatro entregas:
    coloridas laterais; semana com título e horário nos blocos).
 4. ⏳ Diário, Finanças, Saúde, Estudos, Conta e Entrar.
 
+Figma (16/10): https://www.figma.com/design/FcdcJnS9XIt3vYF0biEIAO — base (cores
+Escuro/Claro em duas coleções, espaços, cantos, 12 estilos de texto, 16 ícones,
+componentes: Nav/Item, Aba, Botão, Campo, Linha de lista, Navegação lateral,
+Barra de abas) e as telas que faltavam: Diário, Finanças, Importar extrato,
+Saúde, Estudos, Revisão, Minha conta e Acessos (computador, escuro) + Diário e
+Finanças no iPhone. Plano Starter do Figma: 3 páginas e 1 modo por coleção.
+
 ### Depois do lançamento (ideias registradas)
 
 - **Widget do Mac (pedido em 08/10).** Mostra os hábitos de hoje, com

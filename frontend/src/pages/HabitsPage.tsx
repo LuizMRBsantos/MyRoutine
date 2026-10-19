@@ -1,27 +1,33 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  useHabits, useHabitStats, useCheckIn, useUndoCheckIn,
+  useHabits, useCheckIn, useUndoCheckIn,
   useCreateHabit, useUpdateHabit, useDeleteHabit,
 } from '@/hooks/useHabits'
 import { HabitCard } from '@/components/habits/HabitCard'
+import { scheduleLabel } from '@/lib/habitSchedule'
+import { useConsistency } from '@/hooks/useConsistency'
 import { HabitDrawer } from '@/components/habits/HabitDrawer'
 import { HabitFormModal } from '@/components/habits/HabitFormModal'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { Icon } from '@/components/ui/Icon'
 import { toast } from '@/lib/toast'
 import type { Habit, CheckInInput } from '@/types/habit'
 import styles from './HabitsPage.module.css'
 
 const TIME_GROUPS = [
-  { key: 'morning', label: '☀️ Manhã' },
-  { key: 'afternoon', label: '🌤 Tarde' },
-  { key: 'evening', label: '🌙 Noite' },
-  { key: 'anytime', label: '✦ Qualquer hora' },
+  { key: 'morning', label: 'Manhã' },
+  { key: 'afternoon', label: 'Tarde' },
+  { key: 'evening', label: 'Noite' },
+  { key: 'anytime', label: 'A qualquer hora' },
 ] as const
 
 export function HabitsPage() {
   const { data: habits = [], isLoading, isError } = useHabits()
-  const { data: stats } = useHabitStats()
+  const { data: consistency } = useConsistency()
+  // Últimos 7 dias de cada hábito, para os pontinhos e o "5 de 7".
+  const recentById = new Map((consistency?.habits ?? []).map(h => [h.id, h.days.slice(-7)]))
+  const [filter, setFilter] = useState<'today' | 'all'>('today')
   const checkIn = useCheckIn()
   const undoCheckIn = useUndoCheckIn()
   const createHabit = useCreateHabit()
@@ -45,9 +51,13 @@ export function HabitsPage() {
     }
   }
 
+  // "Hoje" mostra os hábitos programados para hoje e, à parte, os que não são
+  // do dia; "Todos" mostra todos por período.
+  const visible = filter === 'today' ? habits.filter(h => h.scheduled_today || h.completed_today) : habits
+  const notToday = filter === 'today' ? habits.filter(h => !h.scheduled_today && !h.completed_today) : []
   const groupedHabits = TIME_GROUPS.map(group => ({
     ...group,
-    habits: habits.filter(h => h.time_of_day === group.key),
+    habits: visible.filter(h => h.time_of_day === group.key),
   })).filter(g => g.habits.length > 0)
 
   return (
@@ -56,43 +66,18 @@ export function HabitsPage() {
       <div className={styles.header}>
         <div>
           <p className={styles.dateLabel}>{today}</p>
-          <h1 className={styles.pageTitle}>Meus Hábitos</h1>
+          <h1 className={styles.pageTitle}>Hábitos</h1>
         </div>
-        <button
-          className="btn btn-primary"
-          onClick={() => setShowCreate(true)}
-          id="create-habit-btn"
-        >
-          + Novo Hábito
-        </button>
+        <div className={styles.headerActions}>
+          <div className={styles.segmented} role="group" aria-label="Quais hábitos mostrar">
+            <button type="button" aria-pressed={filter === 'today'} onClick={() => setFilter('today')}>Hoje</button>
+            <button type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Todos</button>
+          </div>
+          <button className="btn btn-primary" onClick={() => setShowCreate(true)} id="create-habit-btn">
+            Novo hábito
+          </button>
+        </div>
       </div>
-
-      {/* ─── Stats ──────────────────────────────── */}
-      {stats && (
-        <div className={styles.statsGrid}>
-          <div className={`glass-card ${styles.statCard}`}>
-            <div className={styles.statIcon} style={{ color: 'var(--color-accent)', background: 'var(--color-accent-light)' }}>✦</div>
-            <div>
-              <p className={styles.statValue}>{stats.completed_today}/{stats.total_habits}</p>
-              <p className={styles.statLabel}>Hoje</p>
-            </div>
-          </div>
-          <div className={`glass-card ${styles.statCard}`}>
-            <div className={styles.statIcon} style={{ color: 'var(--color-success)', background: 'var(--color-success-light)' }}>◈</div>
-            <div>
-              <p className={styles.statValue}>{stats.total_check_ins}</p>
-              <p className={styles.statLabel}>Total check-ins</p>
-            </div>
-          </div>
-          <div className={`glass-card ${styles.statCard}`}>
-            <div className={styles.statIcon} style={{ color: 'var(--color-warning)', background: 'var(--color-warning-light)' }}>◎</div>
-            <div>
-              <p className={styles.statValue}>{Math.round((stats.completion_rate_7d ?? 0) * 100)}%</p>
-              <p className={styles.statLabel}>Conclusão (7d)</p>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ─── Habits by group ─────────────────────── */}
       {isLoading ? (
@@ -101,17 +86,17 @@ export function HabitsPage() {
         </div>
       ) : isError ? (
         <div className={styles.emptyState}>
-          <div className={styles.emptyIcon}>◌</div>
+          <div className={styles.emptyIcon}><Icon name="habits" size={28} /></div>
           <h3 className={styles.emptyTitle}>Não foi possível carregar seus hábitos</h3>
           <p className={styles.emptyText}>Verifique sua conexão e tente novamente.</p>
         </div>
       ) : habits.length === 0 ? (
         <motion.div className={styles.emptyState} initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <div className={styles.emptyIcon}>✦</div>
+          <div className={styles.emptyIcon}><Icon name="habits" size={28} /></div>
           <h3 className={styles.emptyTitle}>Nenhum hábito ainda</h3>
           <p className={styles.emptyText}>Crie seu primeiro hábito e comece a construir sua rotina ideal.</p>
           <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
-            + Criar primeiro hábito
+            Criar primeiro hábito
           </button>
         </motion.div>
       ) : (
@@ -119,7 +104,7 @@ export function HabitsPage() {
           {groupedHabits.map((group) => (
             <div key={group.key} className={styles.group}>
               <h2 className={styles.groupLabel}>{group.label}</h2>
-              <div className={styles.habitsList}>
+              <div className={`glass-card ${styles.habitsList}`}>
                 <AnimatePresence>
                   {group.habits.map((habit, i) => (
                     <motion.div
@@ -136,6 +121,7 @@ export function HabitsPage() {
                         onDelete={() => setDeletingHabit(habit)}
                         onClick={() => setSelectedHabit(habit)}
                         isPending={checkIn.isPending || undoCheckIn.isPending || deleteHabit.isPending}
+                        recent={recentById.get(habit.id)}
                       />
                     </motion.div>
                   ))}
@@ -143,6 +129,24 @@ export function HabitsPage() {
               </div>
             </div>
           ))}
+          {notToday.length > 0 && (
+            <div className={styles.group}>
+              <h2 className={styles.groupLabel}>Não é dia hoje</h2>
+              <ul className={styles.offList}>
+                {notToday.map(h => (
+                  <li key={h.id}>
+                    <button type="button" className={styles.offRow} onClick={() => setSelectedHabit(h)}>
+                      <span aria-hidden="true" className={styles.offIcon}>{h.icon}</span>
+                      <span className={styles.offText}>
+                        <span className={styles.offName}>{h.name}</span>
+                        <span className={styles.offDetail}>{scheduleLabel(h.target_days)}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
@@ -201,6 +205,7 @@ export function HabitsPage() {
         habit={selectedHabit}
         onClose={() => setSelectedHabit(null)}
         onEdit={(habit) => { setSelectedHabit(null); setEditingHabit(habit) }}
+        onDelete={(habit) => { setSelectedHabit(null); setDeletingHabit(habit) }}
       />
     </div>
   )

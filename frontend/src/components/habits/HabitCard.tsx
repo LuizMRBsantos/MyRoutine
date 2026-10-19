@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import type { Habit, CheckInInput } from '@/types/habit'
 import { HabitTimer } from './HabitTimer'
 import { MetricCheckIn } from './MetricCheckIn'
+import { scheduleLabel } from '@/lib/habitSchedule'
 import styles from './HabitCard.module.css'
 
 interface HabitCardProps {
@@ -12,9 +13,22 @@ interface HabitCardProps {
   onDelete: () => void
   onClick: () => void
   isPending?: boolean
+  // Últimos 7 dias, um caractere por dia (códigos de /habits/consistency).
+  recent?: string
 }
 
-export function HabitCard({ habit, onCheckIn, onUndo, onDelete, onClick, isPending }: HabitCardProps) {
+function typeLabel(h: Habit): string | null {
+  if (h.check_type === 'timed' && h.timer_minutes) return `timer de ${h.timer_minutes} min`
+  if (h.check_type === 'deadline' && h.deadline_time) return `até ${h.deadline_time.slice(0, 5)}`
+  if (h.check_type === 'metric' && h.metric_config?.length) {
+    return `registra ${h.metric_config.map(m => m.unit || m.label).join(', ')}`
+  }
+  return null
+}
+
+const DOT: Record<string, string> = { x: 'dotDone', o: 'dotOpen', '.': 'dotToday', '-': 'dotOff', ' ': 'dotOff' }
+
+export function HabitCard({ habit, onCheckIn, onUndo, onDelete, onClick, isPending, recent }: HabitCardProps) {
   const [activeMode, setActiveMode] = useState<'none' | 'note' | 'timer' | 'metric'>('none')
   const [note, setNote] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -72,83 +86,78 @@ export function HabitCard({ habit, onCheckIn, onUndo, onDelete, onClick, isPendi
     }
   }
 
-  const renderActionIcon = () => {
-    if (habit.completed_today) return '✓'
-    if (pastDeadline) return '⏰'
-    switch (habit.check_type) {
-      case 'timed': return '▶'
-      case 'metric': return '📊'
-      default: return '○'
-    }
-  }
+  const done7 = recent ? [...recent].filter(c => c === 'x').length : 0
+  const due7 = recent ? [...recent].filter(c => c === 'x' || c === 'o').length : 0
+  const details = [
+    scheduleLabel(habit.target_days),
+    typeLabel(habit),
+    recent && due7 > 0 ? `${done7} de ${due7} nos últimos 7 dias` : null,
+  ].filter(Boolean).join(' · ')
+
+  const actionLabel = habit.completed_today ? `Desfazer ${habit.name}`
+    : pastDeadline ? 'Janela encerrada para hoje'
+    : habit.check_type === 'timed' ? `Abrir timer de ${habit.name}`
+    : habit.check_type === 'metric' ? `Registrar medidas de ${habit.name}`
+    : `Marcar ${habit.name}`
 
   return (
-    <div className={`glass-card ${styles.card} ${activeMode !== 'none' ? styles.cardExpanded : ''}`}>
-      {/* Accent bar — mantém a cor do hábito sempre, deadline expirado não muda cor */}
-      <div className={styles.accent} style={{ background: habit.color }} />
-
-      {/* Main row */}
+    <div className={`${styles.card} ${activeMode !== 'none' ? styles.cardExpanded : ''}`}>
       <div className={styles.mainRow} onClick={activeMode === 'none' ? onClick : undefined}>
-        {/* Icon */}
-        <div
-          className={styles.icon}
-          style={{ background: habit.color + '18', color: habit.color }}
-        >
-          {habit.icon}
-        </div>
+        <span className={styles.icon} aria-hidden="true">{habit.icon}</span>
 
-        {/* Info */}
         <div className={styles.info}>
-          <h3 className={styles.name}>
-            {habit.name}
-            {habit.check_type === 'deadline' && habit.deadline_time && (
-              <span className={styles.deadlineInfo}>
-                {' '}• até {habit.deadline_time}
-              </span>
-            )}
-          </h3>
-          {habit.current_streak > 0 && (
-            <p className={styles.streak}>🔥 {habit.current_streak} dias seguidos</p>
-          )}
-          {pastDeadline && !habit.completed_today && (
-            <p className={styles.missedDeadline}>
-              Janela encerrada
-            </p>
-          )}
+          <h3 className={`${styles.name} ${habit.completed_today ? styles.nameDone : ''}`}>{habit.name}</h3>
+          <p className={styles.details}>
+            {pastDeadline ? 'Janela encerrada hoje' : details}
+          </p>
         </div>
 
-        {/* Delete */}
+        {recent && (
+          <span className={styles.dots} aria-hidden="true">
+            {[...recent].map((c, i) => <span key={i} className={`${styles.dot} ${styles[DOT[c] ?? 'dotOff']}`} />)}
+          </span>
+        )}
+
         <button
-          className={styles.deleteBtn}
+          type="button"
+          className={`${styles.ghostBtn} ${styles.deleteBtn}`}
           onClick={(e) => { e.stopPropagation(); onDelete() }}
+          aria-label={`Remover ${habit.name}`}
           title="Remover hábito"
         >
-          ×
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
         </button>
 
-        {/* Note button (only for simple/deadline when not completed) */}
         {!habit.completed_today && !pastDeadline && ['simple', 'deadline'].includes(habit.check_type) && (
           <button
-            className={styles.noteBtn}
+            type="button"
+            className={styles.ghostBtn}
             onClick={(e) => { e.stopPropagation(); setActiveMode(v => v === 'note' ? 'none' : 'note') }}
+            aria-label={`Registrar ${habit.name} com nota`}
             title="Registrar com nota"
           >
-            ✎
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 20h4l10-10-4-4L4 16z" /><path d="M13 7l4 4" /></svg>
           </button>
         )}
 
-        {/* Action button */}
-        <motion.button
-          className={`${styles.checkBtn} ${habit.completed_today ? styles.checkBtnDone : ''} ${pastDeadline ? styles.checkBtnMuted : ''}`}
-          style={habit.completed_today ? { background: habit.color, borderColor: habit.color } : {}}
+        <button
+          type="button"
+          className={styles.checkBtn}
           onClick={handleActionClick}
-          whileTap={!pastDeadline ? { scale: 0.88 } : {}}
-          whileHover={!pastDeadline ? { scale: 1.08 } : {}}
           disabled={isPending || pastDeadline}
-          title={pastDeadline ? 'Janela encerrada para hoje' : ''}
+          aria-label={actionLabel}
+          title={pastDeadline ? 'Janela encerrada para hoje' : undefined}
         >
-          {renderActionIcon()}
-        </motion.button>
+          <span className={`${styles.circle} ${habit.completed_today ? styles.circleDone : ''} ${pastDeadline ? styles.circleMuted : ''}`}>
+            {habit.completed_today ? (
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+            ) : habit.check_type === 'timed' ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" /></svg>
+            ) : habit.check_type === 'metric' ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M12 6v12M6 12h12" /></svg>
+            ) : null}
+          </span>
+        </button>
       </div>
 
       {/* Expanded Modes */}
@@ -183,8 +192,8 @@ export function HabitCard({ habit, onCheckIn, onUndo, onDelete, onClick, isPendi
               <button type="button" className={styles.noteCancelBtn} onClick={() => setActiveMode('none')}>
                 Cancelar
               </button>
-              <button type="submit" className={styles.noteSubmitBtn} style={{ background: habit.color }}>
-                Confirmar ✓
+              <button type="submit" className={styles.noteSubmitBtn}>
+                Registrar
               </button>
             </div>
           </motion.form>

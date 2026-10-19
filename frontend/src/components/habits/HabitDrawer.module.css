@@ -167,6 +167,12 @@
   background: var(--color-accent-light);
 }
 
+.deleteBtn:hover {
+  border-color: var(--color-error);
+  color: var(--color-error);
+  background: var(--color-error-light);
+}
+
 /* ─── Log history ────────────────────────────────────────── */
 .logList {
   list-style: none;

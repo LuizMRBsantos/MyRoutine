@@ -8,6 +8,7 @@ interface HabitDrawerProps {
   habit: Habit | null
   onClose: () => void
   onEdit: (habit: Habit) => void
+  onDelete?: (habit: Habit) => void
 }
 
 function toDateStr(d: Date) {
@@ -31,7 +32,7 @@ function formatLogDetail(log: HabitLog, habit: Habit): string | null {
   return parts.length ? parts.join(' · ') : null
 }
 
-export function HabitDrawer({ habit, onClose, onEdit }: HabitDrawerProps) {
+export function HabitDrawer({ habit, onClose, onEdit, onDelete }: HabitDrawerProps) {
   const to = toDateStr(new Date())
   const from = toDateStr(new Date(Date.now() - 89 * 24 * 60 * 60 * 1000))
   const { data: logs = [] } = useHabitLogs(habit?.id, from, to)
@@ -83,6 +84,11 @@ export function HabitDrawer({ habit, onClose, onEdit }: HabitDrawerProps) {
               >
                 Editar
               </button>
+              {onDelete && (
+                <button className={`${styles.editBtn} ${styles.deleteBtn}`} onClick={() => onDelete(habit)} title="Apagar hábito">
+                  Apagar
+                </button>
+              )}
               <button className={styles.closeBtn} onClick={onClose} id="close-habit-drawer">×</button>
             </div>
 

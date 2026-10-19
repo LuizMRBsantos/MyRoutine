@@ -30,7 +30,7 @@ export function DashboardCalendarWidget() {
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Relógio em tempo real para o ponteiro vermelho
+  // Relógio em tempo real para a linha do "agora"
   const [now, setNow] = useState(() => new Date())
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60000)
@@ -135,13 +135,7 @@ export function DashboardCalendarWidget() {
       {/* ── Header e Controles ── */}
       <div className={styles.header}>
         <div className={styles.titleArea}>
-          <h2 className={styles.title}>
-            <span>🗓️</span>
-            <span>Calendário Interativo</span>
-          </h2>
-          <p className={styles.subtitle}>
-            Visão Google Calendar com ponteiro de tempo ao vivo e blocos proporcionais
-          </p>
+          <h2 className={styles.title}>Esta semana</h2>
         </div>
 
         <div className={styles.controls}>
@@ -285,7 +279,7 @@ export function DashboardCalendarWidget() {
                     </div>
                   ))}
 
-                  {/* ── LINHA VERMELHA DO TEMPO ATUAL (SE HOJE) ── */}
+                  {/* ── LINHA DO "AGORA" (SE HOJE) ── */}
                   {day.isToday && currentTimeTopPx !== null && (
                     <div
                       className={styles.redTimeLine}
@@ -319,9 +313,8 @@ export function DashboardCalendarWidget() {
                         style={{
                           top: `${topPx}px`,
                           height: `${heightPx}px`,
-                          backgroundColor: meta.color + '26',
-                          borderLeft: `3.5px solid ${meta.color}`,
-                          color: meta.color,
+                          // Fundo levemente tingido pela categoria; texto sempre legível.
+                          backgroundColor: meta.color + '2E',
                         }}
                         title={`${meta.label}: ${t.title} (${timeRangeStr}) - Clique para editar`}
                         onClick={(e) => {
@@ -329,12 +322,8 @@ export function DashboardCalendarWidget() {
                           setEditingTask(t)
                         }}
                       >
-                        <div className={styles.taskBlockHeader}>
-                          <span className={styles.taskBlockTitle}>
-                            {meta.icon} {t.title}
-                          </span>
-                          <span className={styles.taskBlockTime}>{timeRangeStr}</span>
-                        </div>
+                        <span className={styles.taskBlockTitle}>{t.title}</span>
+                        <span className={styles.taskBlockTime}>{timeRangeStr}</span>
                         {heightPx >= 45 && t.notes && (
                           <div className={styles.taskBlockDesc}>{t.notes}</div>
                         )}

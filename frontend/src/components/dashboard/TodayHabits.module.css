@@ -4,103 +4,96 @@
   gap: var(--space-3);
 }
 
-.progressHeader {
+.group {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
 }
 
-.progressText {
-  font-size: var(--font-size-sm);
+.groupLabel {
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
-}
-
-.progressPct {
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-accent);
-}
-
-.progressBar {
-  height: 6px;
-  background: var(--color-border);
-  border-radius: var(--radius-full);
-  overflow: hidden;
-}
-
-.progressFill {
-  height: 100%;
-  background: var(--color-accent);
-  border-radius: var(--radius-full);
+  margin: var(--space-1) 0 0 var(--space-1);
 }
 
 .list {
+  list-style: none;
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
 }
 
 .row {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-md);
-  transition: background var(--transition-fast);
-}
-
-.row:hover {
-  background: var(--color-border);
+  padding-left: var(--space-1);
 }
 
 .habitIcon {
-  width: 32px;
-  height: 32px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1rem;
+  width: 24px;
+  text-align: center;
+  font-size: 1.1rem;
   flex-shrink: 0;
 }
 
 .habitName {
   flex: 1;
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
+  min-width: 0;
+  font-size: var(--font-size-md);
   color: var(--color-text-primary);
-  transition: color var(--transition-fast);
+  overflow-wrap: anywhere;
 }
 
+/* Feito: só mais discreto; sem cor de comemoração. */
 .done {
-  color: var(--color-text-tertiary);
+  color: var(--color-text-secondary);
   text-decoration: line-through;
+  text-decoration-color: var(--color-text-tertiary);
 }
 
-.streakBadge {
-  font-size: var(--font-size-xs);
+.meta {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
 
+/* Área de toque de 44px; o círculo visível tem 26px. */
 .checkBtn {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1.5px solid var(--color-border-strong);
-  background: transparent;
-  color: var(--color-text-tertiary);
-  font-size: 0.875rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: all var(--transition-fast);
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--color-text-primary);
 }
 
-.checkBtnDone {
-  color: #1B1B19;
-  border: none;
+.circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-text-tertiary);
+  display: grid;
+  place-items: center;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
 }
+
+.checkBtn:active .circle { transform: scale(0.9); }
+.checkBtn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -4px; border-radius: 50%; }
+
+.circleDone {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: var(--color-on-accent);
+}
+
+.empty {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  padding: var(--space-2) var(--space-1);
+}
+
+.empty a { color: var(--color-accent); }
 
 .skeletonList {
   display: flex;
@@ -109,20 +102,8 @@
 }
 
 .skeleton {
-  height: 44px;
-  background: var(--color-border);
+  height: 40px;
   border-radius: var(--radius-md);
-  animation: pulse 2s ease-in-out infinite;
-}
-
-.empty {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  text-align: center;
-  padding: var(--space-6) 0;
-}
-
-.empty a {
-  color: var(--color-accent);
-  font-weight: var(--font-weight-medium);
+  background: var(--color-surface-2);
+  animation: pulse 1.6s ease-in-out infinite;
 }

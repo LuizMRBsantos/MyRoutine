@@ -1,139 +1,85 @@
-import { motion } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
-import { useHabits, useHabitStats, useHeatmap } from '@/hooks/useHabits'
+import { useHabits } from '@/hooks/useHabits'
+import { useConsistency } from '@/hooks/useConsistency'
+import { TodayAgenda } from '@/components/dashboard/TodayAgenda'
 import { TodayHabits } from '@/components/dashboard/TodayHabits'
-import { HabitHeatmap } from '@/components/habits/HabitHeatmap'
-import { DashboardCalendarWidget } from '@/components/dashboard/DashboardCalendarWidget'
 import { WeeklyGoals } from '@/components/dashboard/WeeklyGoals'
+import { DashboardCalendarWidget } from '@/components/dashboard/DashboardCalendarWidget'
+import { WeekInOneLine } from '@/components/dashboard/WeekInOneLine'
+import { HabitConsistency } from '@/components/dashboard/HabitConsistency'
 import styles from './DashboardPage.module.css'
 
-const MODULES = [
-  { icon: '◈', label: 'Finanças', desc: 'Controle seus gastos', color: '#34C759', to: '/finance' },
-  { icon: '◉', label: 'Saúde', desc: 'Treinos e métricas', color: '#FF9F0A', to: '/saude' },
-  { icon: '◆', label: 'Estudos', desc: 'Aprendizado ativo', color: '#AF52DE', to: '/studies' },
-]
+function greeting(hour: number): string {
+  if (hour < 12) return 'Bom dia'
+  if (hour < 18) return 'Boa tarde'
+  return 'Boa noite'
+}
 
+// Início: o "Hoje" manda (agenda + hábitos lado a lado), a semana vem logo
+// depois e a constância fica no fim, para olhar para trás. Sem anel de %,
+// chama ou barra de progresso (product-constitution; dashboard-widget-design).
 export function DashboardPage() {
   const { user } = useAuthStore()
   const navigate = useNavigate()
   const { data: habits = [], isLoading, isError } = useHabits()
-  const { data: stats } = useHabitStats()
-  const { data: heatmapData = [] } = useHeatmap()
+  const { data: consistency } = useConsistency()
+  const hasHabits = (consistency?.habits.length ?? 0) > 0
 
-  const getGreeting = () => {
-    const hour = new Date().getHours()
-    if (hour < 12) return 'Bom dia'
-    if (hour < 18) return 'Boa tarde'
-    return 'Boa noite'
-  }
-
-  const today = new Date().toLocaleDateString('pt-BR', {
-    weekday: 'long', day: 'numeric', month: 'long',
-  })
-
-  const completedToday = stats?.completed_today ?? 0
-  const totalHabits = stats?.total_habits ?? 0
-  const completionPct = totalHabits > 0
-    ? Math.round((completedToday / totalHabits) * 100)
-    : 0
+  const now = new Date()
+  const firstName = user?.name?.split(' ')[0]
+  const today = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })
 
   return (
     <div className={styles.page}>
-      {/* ─── Header ─────────────────────────────────── */}
-      <motion.div
-        className={styles.header}
-        initial={{ opacity: 0, y: -12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-      >
-        <div>
-          <p className={styles.greeting}>{getGreeting()},</p>
-          <h1 className={styles.userName}>{user?.name?.split(' ')[0] ?? 'você'} ✦</h1>
+      <header className={styles.header}>
+        <div className={styles.titles}>
           <p className={styles.date}>{today}</p>
+          <h1 className={styles.greeting}>{greeting(now.getHours())}{firstName ? `, ${firstName}` : ''}.</h1>
         </div>
+        <div className={styles.actions}>
+          <button type="button" className="btn btn-secondary" onClick={() => navigate('/diario')}>Escrever no diário</button>
+          <button type="button" className="btn btn-primary" onClick={() => navigate('/planner')}>Nova tarefa</button>
+        </div>
+      </header>
 
-        {/* Day completion ring */}
-        {totalHabits > 0 && (
-          <div className={styles.ringWrapper} title={`${completedToday} de ${totalHabits} hábitos`}>
-            <svg viewBox="0 0 44 44" className={styles.ring}>
-              <circle cx="22" cy="22" r="18" className={styles.ringTrack} />
-              <circle
-                cx="22" cy="22" r="18"
-                className={styles.ringFill}
-                strokeDasharray={`${2 * Math.PI * 18}`}
-                strokeDashoffset={`${2 * Math.PI * 18 * (1 - completionPct / 100)}`}
-              />
-            </svg>
-            <span className={styles.ringLabel}>{completionPct}%</span>
-          </div>
-        )}
-      </motion.div>
-
-      <div className={styles.grid}>
-        {/* ─── Today's Habits ─────────────────────────── */}
-        <motion.div
-          className={`glass-card ${styles.card} ${styles.habitsCard}`}
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.4 }}
-        >
+      <div className={styles.today}>
+        <section className={`glass-card ${styles.card}`} aria-labelledby="inicio-agenda">
           <div className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Hábitos de Hoje</h2>
-            <button
-              className={`btn btn-ghost ${styles.seeAll}`}
-              onClick={() => navigate('/habits')}
-            >
-              Ver todos →
-            </button>
+            <h2 id="inicio-agenda" className={styles.cardTitle}>Agenda de hoje</h2>
+            <Link to="/planner" className={styles.cardLink}>Planner</Link>
+          </div>
+          <TodayAgenda />
+        </section>
+
+        <section className={`glass-card ${styles.card}`} aria-labelledby="inicio-habitos">
+          <div className={styles.cardHeader}>
+            <h2 id="inicio-habitos" className={styles.cardTitle}>Hábitos de hoje</h2>
+            <Link to="/habits" className={styles.cardLink}>Todos</Link>
           </div>
           <TodayHabits habits={habits} isLoading={isLoading} isError={isError} />
-        </motion.div>
+        </section>
 
-        {/* ─── Modules ──────────────────────────── */}
-        <div className={styles.modulesGrid}>
-          {MODULES.map((mod, i) => (
-            <motion.div
-              key={mod.label}
-              className={`glass-card ${styles.moduleCard}`}
-              style={{ cursor: 'pointer' }}
-              onClick={() => navigate(mod.to)}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 + i * 0.06, duration: 0.4 }}
-            >
-              <div
-                className={styles.moduleIcon}
-                style={{ background: mod.color + '18', color: mod.color }}
-              >
-                {mod.icon}
-              </div>
-              <div className={styles.moduleInfo}>
-                <h3 className={styles.moduleLabel}>{mod.label}</h3>
-                <p className={styles.moduleDesc}>{mod.desc}</p>
-              </div>
-            </motion.div>
-          ))}
-        </div>
+        <WeeklyGoals />
       </div>
 
-      {/* ─── Metas da semana ────────────────────────── */}
-      <WeeklyGoals />
-
-      {/* ─── Calendário Interativo Google Calendar (Semana/Mês) ────── */}
       <DashboardCalendarWidget />
 
-      {/* ─── Consistência Heatmap ────────────────────── */}
-      {heatmapData.length > 0 && (
-        <motion.div
-          className={`glass-card ${styles.heatmapCard}`}
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25, duration: 0.4 }}
-        >
-          <h2 className={styles.cardTitle}>Consistência — 90 dias</h2>
-          <HabitHeatmap data={heatmapData} days={90} />
-        </motion.div>
+      {hasHabits && (
+        <section className={`glass-card ${styles.card}`} aria-labelledby="inicio-semana">
+          <h2 id="inicio-semana" className={styles.cardTitle}>A semana em uma linha</h2>
+          <WeekInOneLine />
+        </section>
+      )}
+
+      {hasHabits && (
+        <section className={`glass-card ${styles.card}`} aria-labelledby="inicio-constancia">
+          <div className={styles.cardHeader}>
+            <h2 id="inicio-constancia" className={styles.cardTitle}>Constância</h2>
+            <span className={styles.cardHint}>últimos 90 dias, por hábito</span>
+          </div>
+          <HabitConsistency />
+        </section>
       )}
     </div>
   )

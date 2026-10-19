@@ -266,6 +266,18 @@ func (h *HabitHandler) Stats(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, stats)
 }
 
+// Consistency returns the last 90 days of each habit (one character per day)
+// with neutral counts, for the Início "constância" block.
+func (h *HabitHandler) Consistency(w http.ResponseWriter, r *http.Request) {
+	data, err := h.habitSvc.Consistency(r.Context(), middleware.GetUserID(r.Context()))
+	if err != nil {
+		h.logger.Error("habit consistency", zap.Error(err))
+		respondError(w, http.StatusInternalServerError, "failed to get habit consistency")
+		return
+	}
+	respondJSON(w, http.StatusOK, data)
+}
+
 // Heatmap returns daily completion counts for the past 365 days.
 func (h *HabitHandler) Heatmap(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.GetUserID(r.Context())

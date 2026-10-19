@@ -10,6 +10,7 @@ export const habitKeys = {
   logs: (id: string) => [...habitKeys.all, 'logs', id] as const,
   stats: () => [...habitKeys.all, 'stats'] as const,
   heatmap: () => [...habitKeys.all, 'heatmap'] as const,
+  consistency: () => [...habitKeys.all, 'consistency'] as const,
 }
 
 // ─── API Calls ────────────────────────────────────────────────────────────────
@@ -88,6 +89,7 @@ export function useCreateHabit() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.list() })
       queryClient.invalidateQueries({ queryKey: habitKeys.stats() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.consistency() })
     },
   })
 }
@@ -129,6 +131,7 @@ export function useCheckIn() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.list() })
       queryClient.invalidateQueries({ queryKey: habitKeys.stats() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.consistency() })
       queryClient.invalidateQueries({ queryKey: habitKeys.heatmap() })
     },
   })
@@ -142,6 +145,7 @@ export function useUndoCheckIn() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.list() })
       queryClient.invalidateQueries({ queryKey: habitKeys.stats() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.consistency() })
     },
   })
 }

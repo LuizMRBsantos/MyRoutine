@@ -446,9 +446,13 @@ https://claude.ai/artifact/87GdzyVX7SDSSN6CpCRrwb (privado). Quatro entregas:
    outubro"); logo sem degradê; cartões sólidos e `.glass` só para o que flutua.
    Migração 020 converte as cores saturadas antigas de hábitos/metas/tarefas
    para a paleta nova.
-2. ⏳ Início: agenda + hábitos de hoje lado a lado, sem anel de %/🔥/barra,
-   metas e "semana em uma linha" ao lado, calendário legível, mapa de 90 dias
-   discreto, barra de abas de vidro.
+2. ✅ Início (19/10): agenda de hoje (próximo compromisso com "em 40 min"),
+   hábitos de hoje por período (sem anel de %, 🔥 ou barra), metas da semana,
+   calendário com título nos blocos e linha do "agora" em sálvia, "a semana em
+   uma linha" e **Constância por hábito** (pedido do Luiz: o mapa geral de 90
+   dias era simples demais) — uma faixa de 90 dias por hábito com contagens
+   neutras ("33 de 46 dias", "antes: …"), vinda de `GET /habits/consistency`.
+   Barra de abas do iPhone virou pílula de vidro flutuante.
 3. ⏳ Hábitos e Planner no novo padrão (sem cartões de números nem barras
    coloridas laterais; semana com título e horário nos blocos).
 4. ⏳ Diário, Finanças, Saúde, Estudos, Conta e Entrar.

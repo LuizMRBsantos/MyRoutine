@@ -1,0 +1,67 @@
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.item {
+  display: flex;
+  gap: var(--space-3);
+  padding: 10px var(--space-3);
+  border-radius: var(--radius-md);
+}
+
+.time {
+  width: 46px;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  padding-top: 1px;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.title {
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.detail {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+/* O próximo compromisso: fundo suave da cor de ação. */
+.next {
+  background: var(--color-accent-light);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.next .time { color: var(--color-text-primary); font-weight: var(--font-weight-medium); }
+.next .title { font-weight: var(--font-weight-medium); }
+.next .detail { color: var(--color-accent); }
+
+.past .title,
+.past .time { color: var(--color-text-tertiary); }
+
+.empty {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  padding: var(--space-2) var(--space-1);
+}
+
+.empty a { color: var(--color-accent); }
+
+.skeleton {
+  height: 120px;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  animation: pulse 1.6s ease-in-out infinite;
+}

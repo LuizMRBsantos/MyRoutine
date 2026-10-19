@@ -136,6 +136,7 @@ func NewRouter(cfg *config.Config, db *pgxpool.Pool, logger *zap.Logger) http.Ha
 				r.Post("/", habitHandler.Create)
 				r.Get("/stats", habitHandler.Stats)
 				r.Get("/heatmap", habitHandler.Heatmap)
+				r.Get("/consistency", habitHandler.Consistency)
 
 				r.Route("/{habitID}", func(r chi.Router) {
 					r.Get("/", habitHandler.GetByID)

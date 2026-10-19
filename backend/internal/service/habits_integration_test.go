@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -492,5 +493,100 @@ func TestHabitsKnowWhetherTheyAreScheduledToday(t *testing.T) {
 	stats, err := svc.getStats(ctx, userID, wednesday)
 	if err != nil || stats.TotalHabits != 1 {
 		t.Fatalf("wednesday stats total = %d (err %v), want 1 (Correr is not today)", stats.TotalHabits, err)
+	}
+}
+
+// Constância por hábito nos últimos 90 dias: cada dia é feito (x), sem
+// registro (o), não programado (-), hoje ainda em aberto (.) ou antes de o
+// hábito existir (espaço). Contagens neutras, comparadas aos 90 dias antes.
+func TestHabitConsistencyPerHabit(t *testing.T) {
+	svc := NewHabitService(requireDB(t), testLogger)
+	userID := createTestUser(t)
+	ctx := context.Background()
+	pool := requireDB(t)
+
+	run, err := svc.Create(ctx, userID, CreateHabitInput{Name: "Correr", Icon: "🏃", Frequency: "custom", TargetDays: []int32{2, 4}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fresh, err := svc.Create(ctx, userID, CreateHabitInput{Name: "Ler", Frequency: "daily", TargetDays: []int32{1, 2, 3, 4, 5, 6, 7}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Wednesday 2030-03-13 is "today". Correr exists for a year; Ler since Monday.
+	today := time.Date(2030, 3, 13, 15, 0, 0, 0, time.UTC)
+	if _, err := pool.Exec(ctx, `UPDATE habits SET created_at = $2 WHERE id = $1`, run.ID, today.AddDate(-1, 0, 0)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE habits SET created_at = $2 WHERE id = $1`, fresh.ID, time.Date(2030, 3, 11, 9, 0, 0, 0, time.UTC)); err != nil {
+		t.Fatal(err)
+	}
+	logs := map[string][]string{
+		run.ID:   {"2030-03-12", "2030-03-07", "2030-03-05", "2029-12-11"}, // Tue, Thu, Tue in window; a Tuesday in the previous window
+		fresh.ID: {"2030-03-11"},
+	}
+	for id, days := range logs {
+		for _, d := range days {
+			if _, err := pool.Exec(ctx, `INSERT INTO habit_logs (habit_id, user_id, logged_date) VALUES ($1, $2, $3)`, id, userID, d); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	got, err := svc.consistency(ctx, userID, today, 90)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.From != "2029-12-14" || got.To != "2030-03-13" {
+		t.Fatalf("window %s..%s, want 2029-12-14..2030-03-13", got.From, got.To)
+	}
+	byName := map[string]HabitConsistency{}
+	for _, h := range got.Habits {
+		if len(h.Days) != 90 {
+			t.Fatalf("%s: %d days, want 90", h.Name, len(h.Days))
+		}
+		byName[h.Name] = h
+	}
+
+	r := byName["Correr"]
+	tail := r.Days[len(r.Days)-9:] // 2030-03-05 (Tue) .. 2030-03-13 (Wed)
+	if tail != "x-x----x-" {
+		t.Fatalf("Correr last 9 days = %q, want %q", tail, "x-x----x-")
+	}
+	// Tue/Thu in 90 days: 25 scheduled; 3 done (12, 7 and 5 of March).
+	if r.Done != 3 || r.Scheduled != 25 {
+		t.Fatalf("Correr = %d of %d, want 3 of 25", r.Done, r.Scheduled)
+	}
+	if r.PreviousDone != 1 || r.PreviousScheduled == 0 {
+		t.Fatalf("Correr previous = %d of %d, want 1 of >0", r.PreviousDone, r.PreviousScheduled)
+	}
+
+	// A check-in registered before the habit was created still counts.
+	back, err := svc.Create(ctx, userID, CreateHabitInput{Name: "Água", Frequency: "daily", TargetDays: []int32{1, 2, 3, 4, 5, 6, 7}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `UPDATE habits SET created_at = $2 WHERE id = $1`, back.ID, today); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `INSERT INTO habit_logs (habit_id, user_id, logged_date) VALUES ($1, $2, '2030-03-11')`, back.ID, userID); err != nil {
+		t.Fatal(err)
+	}
+	again, err := svc.consistency(ctx, userID, today, 90)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, h := range again.Habits {
+		if h.Name == "Água" && strings.TrimLeft(h.Days, " ") != "xo." {
+			t.Fatalf("Água days = %q, want to start at the backdated check-in", strings.TrimLeft(h.Days, " "))
+		}
+	}
+
+	l := byName["Ler"]
+	if !strings.HasSuffix(l.Days, "xo.") || strings.TrimLeft(l.Days, " ") != "xo." {
+		t.Fatalf("Ler days end = %q, want only the last 3 days (created on Monday)", l.Days[len(l.Days)-5:])
+	}
+	if l.Done != 1 || l.Scheduled != 2 || l.PreviousScheduled != 0 {
+		t.Fatalf("Ler = %d of %d (prev %d), want 1 of 2 (prev 0): today does not count yet", l.Done, l.Scheduled, l.PreviousScheduled)
 	}
 }

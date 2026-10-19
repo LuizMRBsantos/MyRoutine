@@ -50,7 +50,7 @@
     right: var(--space-4);
     left: var(--space-4);
     width: auto;
-    bottom: calc(var(--tab-bar-height, 64px) + var(--space-3) + env(safe-area-inset-bottom));
+    bottom: calc(var(--tab-bar-height, 64px) + var(--tab-bar-gap, 12px) + var(--space-3) + env(safe-area-inset-bottom));
     max-height: calc(100dvh - var(--tab-bar-height, 64px) - 2 * var(--space-5));
   }
 }

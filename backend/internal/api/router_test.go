@@ -897,3 +897,14 @@ func TestWeeklyGoalsOverHTTP(t *testing.T) {
 		t.Fatalf("delete = %d, want 204", res.StatusCode)
 	}
 }
+
+func TestHabitConsistencyOverHTTP(t *testing.T) {
+	c := newAuthedClient(t)
+	if res, raw := c.do(http.MethodPost, "/api/v1/habits", map[string]any{"name": "Ler", "frequency": "daily", "target_days": []int{1, 2, 3, 4, 5, 6, 7}}); res.StatusCode != http.StatusCreated {
+		t.Fatalf("create habit = %d %s", res.StatusCode, raw)
+	}
+	res, raw := c.do(http.MethodGet, "/api/v1/habits/consistency", nil)
+	if res.StatusCode != http.StatusOK || !strings.Contains(string(raw), `"name":"Ler"`) || !strings.Contains(string(raw), `"previous_scheduled"`) {
+		t.Fatalf("consistency = %d %s", res.StatusCode, raw)
+	}
+}

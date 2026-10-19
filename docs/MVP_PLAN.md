@@ -453,8 +453,11 @@ https://claude.ai/artifact/87GdzyVX7SDSSN6CpCRrwb (privado). Quatro entregas:
    dias era simples demais) — uma faixa de 90 dias por hábito com contagens
    neutras ("33 de 46 dias", "antes: …"), vinda de `GET /habits/consistency`.
    Barra de abas do iPhone virou pílula de vidro flutuante.
-3. ⏳ Hábitos e Planner no novo padrão (sem cartões de números nem barras
-   coloridas laterais; semana com título e horário nos blocos).
+3. ✅ Hábitos e Planner (19/10). Hábitos: sem cartões de números, barras
+   coloridas ou 🔥; um cartão por período, cada linha com "seg a sex · 5 de 7
+   nos últimos 7 dias" e 7 pontinhos; filtro Hoje/Todos e "Não é dia hoje".
+   Planner: Dia/Semana/Mês, semana em colunas com título e horário, tocar
+   abre a edição; sálvia para aviso ligado, âmbar para prova.
 4. ⏳ Diário, Finanças, Saúde, Estudos, Conta e Entrar.
 
 Figma (16/10): https://www.figma.com/design/FcdcJnS9XIt3vYF0biEIAO — base (cores

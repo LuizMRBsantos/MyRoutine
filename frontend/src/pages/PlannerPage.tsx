@@ -10,7 +10,6 @@ import { MonthCalendarView } from '@/components/planner/MonthCalendarView'
 import { MonthlyGoalsPanel } from '@/components/planner/MonthlyGoalsPanel'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import type { Task } from '@/types/task'
-import { CATEGORY_META } from '@/types/task'
 import styles from './PlannerPage.module.css'
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -94,36 +93,36 @@ export function PlannerPage() {
       {/* ── Header ── */}
       <div className={styles.header}>
         <div>
-          <h1 className={styles.pageTitle}>Planejamento</h1>
-          <p className={styles.pageSubtitle}>Organize seu dia, semana e metas do mês</p>
+          <p className={styles.pageSubtitle}>{navLabel()}</p>
+          <h1 className={styles.pageTitle}>Planner</h1>
         </div>
-
-        <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
-          + Tarefa
-        </button>
-      </div>
-
-      {/* ── Tabs ── */}
-      <div className={styles.tabs}>
-        {TABS.map(t => (
-          <button
-            key={t}
-            className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`}
-            onClick={() => setTab(t)}
-          >
-            {t}
+        <div className={styles.headerActions}>
+          <div className={styles.tabs} role="group" aria-label="Visão">
+            {TABS.map(t => (
+              <button
+                key={t}
+                type="button"
+                aria-pressed={tab === t}
+                className={`${styles.tab} ${tab === t ? styles.tabActive : ''}`}
+                onClick={() => setTab(t)}
+              >
+                {t === 'Hoje' ? 'Dia' : t}
+              </button>
+            ))}
+          </div>
+          <button type="button" className={styles.navBtn} onClick={() => navigate(-1)} aria-label="Anterior">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
           </button>
-        ))}
-      </div>
-
-      {/* ── Navigation ── */}
-      <div className={styles.navRow}>
-        <button className={styles.navBtn} onClick={() => navigate(-1)}>‹</button>
-        <span className={styles.navLabel}>{navLabel()}</span>
-        <button className={styles.navBtn} onClick={() => navigate(1)}>›</button>
-        {!isToday && tab === 'Hoje' && (
-          <button className={styles.todayBtn} onClick={() => setViewDate(today)}>Hoje</button>
-        )}
+          {!isToday && (
+            <button type="button" className="btn btn-secondary" onClick={() => setViewDate(today)}>Hoje</button>
+          )}
+          <button type="button" className={styles.navBtn} onClick={() => navigate(1)} aria-label="Próximo">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+          </button>
+          <button type="button" className="btn btn-primary" onClick={() => setShowAdd(true)}>
+            Nova tarefa
+          </button>
+        </div>
       </div>
 
       <AnimatePresence mode="wait">
@@ -138,7 +137,7 @@ export function PlannerPage() {
             ) : dayTasks.length === 0 ? (
               <div className={styles.empty}>
                 <p>Nenhuma tarefa planejada para este dia.</p>
-                <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ Planejar agora</button>
+                <button className="btn btn-primary" onClick={() => setShowAdd(true)}>Planejar o dia</button>
               </div>
             ) : (
               <div className={styles.taskList}>
@@ -187,24 +186,25 @@ export function PlannerPage() {
                     <div key={day.date} className={`${styles.weekDay} ${day.isToday ? styles.weekDayToday : ''}`}>
                       <div className={styles.weekDayHeader}>
                         <span className={styles.weekDayLabel}>{day.label}</span>
-                        {hasExam && <span className={styles.examBadge}>📝 Prova</span>}
+                        {hasExam && <span className={styles.examBadge}>prova</span>}
                       </div>
                       <div className={styles.weekTaskList}>
                         {tasks.length === 0 ? (
                           <p className={styles.weekEmpty}>—</p>
                         ) : tasks.map(task => {
-                          const meta = CATEGORY_META[task.category]
                           const isDone = task.status === 'done' || task.status === 'reviewed'
+                          const kind = task.category === 'exam' ? styles.weekChipExam : task.notify && task.start_time ? styles.weekChipNotify : ''
                           return (
-                            <div
+                            <button
+                              type="button"
                               key={task.id}
-                              className={`${styles.weekTaskChip} ${isDone ? styles.weekTaskChipDone : ''}`}
-                              style={{ borderLeftColor: task.color ?? meta.color }}
-                              title={task.title}
+                              className={`${styles.weekTaskChip} ${kind} ${isDone ? styles.weekTaskChipDone : ''}`}
+                              onClick={() => setEditingTask(task)}
+                              aria-label={`Editar ${task.title}`}
                             >
-                              <span>{meta.icon}</span>
-                              <span className={styles.weekTaskTitle}>{task.start_time?.slice(0, 5)} {task.title}</span>
-                            </div>
+                              <span className={styles.weekTaskTitle}>{task.title}</span>
+                              {task.start_time && <time className={styles.weekTaskTime}>{task.start_time.slice(0, 5)}{task.category === 'exam' ? ' · prova' : ''}</time>}
+                            </button>
                           )
                         })}
                       </div>

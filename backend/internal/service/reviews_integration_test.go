@@ -129,8 +129,8 @@ func TestGetMissedDaysIgnoresDaysBeforeHabitExisted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("getting missed days: %v", err)
 	}
-	if len(missed) != 3 {
-		t.Fatalf("habit created 3 days ago: missed = %d, want 3", len(missed))
+	if len(missed) != 2 {
+		t.Fatalf("habit created 3 days ago: missed = %d, want 2 (only yesterday and the day before)", len(missed))
 	}
 }
 
@@ -161,7 +161,7 @@ func TestGetMissedDaysOnlyScheduledDays(t *testing.T) {
 		t.Fatalf("getting missed days: %v", err)
 	}
 
-	// Exactly one missed day in the 7-day window: yesterday.
+	// Exactly one missed day in the 2-day window: yesterday.
 	if len(missed) != 1 {
 		t.Fatalf("missed count = %d, want 1 (only the scheduled weekday)", len(missed))
 	}
@@ -192,8 +192,8 @@ func TestGetMissedDaysExcludesLoggedDays(t *testing.T) {
 	if err != nil {
 		t.Fatalf("getting missed days: %v", err)
 	}
-	if len(before) != 7 {
-		t.Fatalf("missed count = %d, want 7 (the whole window, today excluded)", len(before))
+	if len(before) != 2 {
+		t.Fatalf("missed count = %d, want 2 (yesterday and the day before, today excluded)", len(before))
 	}
 
 	if _, err := habitSvc.CheckIn(ctx, habit.ID, userID, CheckInInput{Date: yesterday()}); err != nil {
@@ -204,8 +204,8 @@ func TestGetMissedDaysExcludesLoggedDays(t *testing.T) {
 	if err != nil {
 		t.Fatalf("getting missed days: %v", err)
 	}
-	if len(after) != 6 {
-		t.Errorf("missed count = %d, want 6 after logging yesterday", len(after))
+	if len(after) != 1 {
+		t.Errorf("missed count = %d, want 1 after logging yesterday", len(after))
 	}
 	for _, m := range after {
 		if m.Date == yesterday() {
@@ -214,7 +214,7 @@ func TestGetMissedDaysExcludesLoggedDays(t *testing.T) {
 	}
 }
 
-// The 7-day window ends on the user's local yesterday, not the DB server's
+// The window ends on the user's local yesterday, not the DB server's
 // CURRENT_DATE.
 func TestGetMissedDaysUsesUserLocalDay(t *testing.T) {
 	reviewSvc := newReviewService(t)
@@ -241,7 +241,7 @@ func TestGetMissedDaysUsesUserLocalDay(t *testing.T) {
 	if err != nil {
 		t.Fatalf("getting missed days: %v", err)
 	}
-	want := []string{"2026-03-09", "2026-03-08", "2026-03-07", "2026-03-06", "2026-03-04", "2026-03-03"}
+	want := []string{"2026-03-09", "2026-03-08"}
 	if len(missed) != len(want) {
 		t.Fatalf("missed = %+v, want dates %v", missed, want)
 	}
@@ -249,5 +249,79 @@ func TestGetMissedDaysUsesUserLocalDay(t *testing.T) {
 		if m.Date != want[i] {
 			t.Errorf("missed[%d] = %s, want %s", i, m.Date, want[i])
 		}
+	}
+}
+
+// Decided days leave the review list; days left undecided for more than 2
+// days are discarded by the app (marked auto), never overwriting a decision
+// the person made.
+func TestReviewListOnlyPendingAndOldDaysAutoDiscarded(t *testing.T) {
+	reviewSvc := newReviewService(t)
+	habitSvc := newHabitService(t)
+	userID := createTestUser(t)
+	ctx, loc := saoPauloCtx(t)
+	pool := requireDB(t)
+
+	habit, err := habitSvc.Create(ctx, userID, CreateHabitInput{
+		Name: "Ler", Icon: "📖", Frequency: "daily", TargetDays: []int32{1, 2, 3, 4, 5, 6, 7},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, "UPDATE habits SET created_at = '2026-03-01' WHERE id = $1", habit.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := habitSvc.CheckIn(ctx, habit.ID, userID, CheckInInput{Date: "2026-03-05"}); err != nil {
+		t.Fatal(err)
+	}
+	// The person migrated an old day before it would be auto-discarded.
+	if _, err := reviewSvc.ReviewDay(ctx, habit.ID, userID, "2026-03-04", "migrated"); err != nil {
+		t.Fatal(err)
+	}
+	// And already decided yesterday.
+	if _, err := reviewSvc.ReviewDay(ctx, habit.ID, userID, "2026-03-09", "discarded"); err != nil {
+		t.Fatal(err)
+	}
+
+	missed, err := reviewSvc.getMissedDays(ctx, userID, localMidnight(t, "2026-03-10", loc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(missed) != 1 || missed[0].Date != "2026-03-08" {
+		t.Fatalf("pending = %+v, want only 2026-03-08 (yesterday already decided)", missed)
+	}
+
+	type rv struct {
+		status string
+		auto   bool
+	}
+	got := map[string]rv{}
+	rows, err := pool.Query(ctx, "SELECT review_date::text, status, auto FROM habit_day_reviews WHERE habit_id = $1", habit.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var d string
+		var r rv
+		if err := rows.Scan(&d, &r.status, &r.auto); err != nil {
+			t.Fatal(err)
+		}
+		got[d] = r
+	}
+	rows.Close()
+
+	for _, d := range []string{"2026-03-01", "2026-03-02", "2026-03-03", "2026-03-06", "2026-03-07"} {
+		if got[d] != (rv{"discarded", true}) {
+			t.Errorf("%s = %+v, want auto-discarded", d, got[d])
+		}
+	}
+	if got["2026-03-04"] != (rv{"migrated", false}) {
+		t.Errorf("2026-03-04 = %+v, want the person's migrated decision kept", got["2026-03-04"])
+	}
+	if _, ok := got["2026-03-05"]; ok {
+		t.Error("a logged day must not get a review")
+	}
+	if _, ok := got["2026-03-08"]; ok {
+		t.Error("a day still in the 2-day window must not be auto-discarded")
 	}
 }

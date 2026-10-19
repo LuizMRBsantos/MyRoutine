@@ -14,7 +14,8 @@ const posts: unknown[] = []
 const adapter: AxiosAdapter = async (config) => {
   const ok = (data: unknown) => ({ status: 200, statusText: 'OK', data, headers: {}, config })
   if (config.url === '/reviews/missed') {
-    return ok({ missed_days: days.map(d => ({ ...d, review: reviews[`${d.habit_id}|${d.date}`] })) })
+    // O servidor só devolve os dias ainda sem decisão.
+    return ok({ missed_days: days.filter(d => !reviews[`${d.habit_id}|${d.date}`]) })
   }
   const m = config.url?.match(/^\/habits\/(.+)\/review$/)
   if (m && config.method === 'post') {
@@ -49,7 +50,7 @@ function renderPage() {
 }
 
 describe('ReviewPage (revisão da semana)', () => {
-  it('agrupa por dia e deixa decidir e mudar de ideia', async () => {
+  it('escolhe, muda de ideia e só grava ao salvar; os decididos somem', async () => {
     const user = userEvent.setup()
     renderPage()
 
@@ -60,31 +61,34 @@ describe('ReviewPage (revisão da semana)', () => {
 
     const correr = within(monday).getByRole('group', { name: 'Decisão para Correr' })
     await user.click(within(correr).getByRole('button', { name: '→ Migrar' }))
-    await waitFor(() =>
-      expect(within(correr).getByRole('button', { name: '→ Migrar' })).toHaveAttribute('aria-pressed', 'true')
-    )
-
     await user.click(within(correr).getByRole('button', { name: '· Descartar' }))
-    await waitFor(() =>
-      expect(within(correr).getByRole('button', { name: '· Descartar' })).toHaveAttribute('aria-pressed', 'true')
-    )
-    expect(posts).toEqual([
-      { habit: 'h1', review_date: '2026-09-28', status: 'migrated' },
+    expect(within(correr).getByRole('button', { name: '· Descartar' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(correr).getByRole('button', { name: '→ Migrar' })).toHaveAttribute('aria-pressed', 'false')
+    const ler = within(monday).getByRole('group', { name: 'Decisão para Ler' })
+    await user.click(within(ler).getByRole('button', { name: '→ Migrar' }))
+    expect(posts).toEqual([]) // nada gravado antes de salvar
+
+    await user.click(screen.getByRole('button', { name: 'Salvar revisão' }))
+    await waitFor(() => expect(screen.queryByRole('region', { name: /28 de setembro/ })).not.toBeInTheDocument())
+    expect(posts).toEqual(expect.arrayContaining([
       { habit: 'h1', review_date: '2026-09-28', status: 'discarded' },
-    ])
+      { habit: 'h2', review_date: '2026-09-28', status: 'migrated' },
+    ]))
+    expect(posts).toHaveLength(2)
+    expect(screen.getByRole('region', { name: /26 de setembro/ })).toBeInTheDocument()
   })
 
   it('não mostra contador de dias sem registro (habit-review-flow)', async () => {
     renderPage()
     await screen.findByRole('region', { name: /28 de setembro/ })
     expect(document.body.textContent).not.toMatch(/\d+\s+dias?\s+(sem|perdid|falh)/i)
-    expect(screen.getByText(/nada vira falha/)).toBeInTheDocument()
+    expect(screen.getByText(/nada vira falha/i)).toBeInTheDocument()
   })
 
   it('semana sem buracos: frase neutra, sem comemoração', async () => {
     days = []
     renderPage()
-    expect(await screen.findByText('Nenhum dia sem registro nos últimos 7 dias.')).toBeInTheDocument()
+    expect(await screen.findByText('Nada para revisar: nenhum dia sem registro em aberto.')).toBeInTheDocument()
     expect(document.body.textContent).not.toMatch(/ótim|parab|incrível/i)
   })
 })

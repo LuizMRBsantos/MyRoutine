@@ -116,3 +116,25 @@
 
 /* Português: só a primeira letra maiúscula ("Segunda-feira, 12 de outubro"). */
 .dayTitle::first-letter { text-transform: uppercase; }
+
+/* Barra de salvar: fica no fim da lista, sempre à mão. */
+.saveBar {
+  position: sticky;
+  bottom: var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-bg-elevated) 88%, transparent);
+  backdrop-filter: blur(var(--blur-lg));
+  -webkit-backdrop-filter: blur(var(--blur-lg));
+  box-shadow: inset 0 0 0 1px var(--color-border), var(--shadow-lg);
+}
+
+@media (max-width: 768px) {
+  .saveBar { bottom: calc(var(--tab-bar-height, 64px) + var(--tab-bar-gap, 12px) + var(--space-3) + env(safe-area-inset-bottom)); }
+}
+

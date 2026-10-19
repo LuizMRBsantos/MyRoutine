@@ -13,20 +13,27 @@ description: Define o mecanismo de revisão consciente de dias sem
 Um dia sem log não é "falha" — é estado neutro não revisado. O sistema
 nunca julga automaticamente (sem vermelho, sem "X", sem streak quebrada
 tratada como punição visual). A decisão sobre o que fazer com um dia
-perdido é sempre consciente e do usuário, nunca automática.
+perdido é da pessoa enquanto o dia está na janela de revisão.
+
+**Mudança de regra (decisão do Luiz em 19/10/2026):** a janela de revisão
+é de **2 dias** (ontem e anteontem). Dias que passam disso sem registro e
+sem decisão são **descartados pelo app**, gravados com `auto = true` em
+`habit_day_reviews` para separar do descarte feito pela pessoa. Uma
+decisão da pessoa nunca é sobrescrita. O descarte automático continua
+neutro: sem vermelho, sem contador, sem aviso.
 
 ## Mecanismo: migração / descarte
-Uma vez por semana (nunca diariamente — cadência diária de "você
-falhou" gera ansiedade, não reflexão), o sistema mostra os buracos da
-semana e oferece, por dia perdido, duas ações conscientes:
+A tela de Revisão (opt-in no menu, nunca notificação) mostra os dias da
+janela ainda sem decisão e oferece, por dia perdido, duas ações; a pessoa
+escolhe e toca em "Salvar revisão", e os dias decididos saem da lista:
 
 - **Migrar** — "não fiz, mas ainda quero, mover intenção pra próxima
   semana". Não cria um `habit_log` — só um marcador de intenção.
 - **Descartar** — "esse dia não vai ser recuperado, e tudo bem". Marca
   como `intentionally_skipped`, visualmente neutro (nunca vermelho).
 
-Se o usuário ignorar a revisão, o dia permanece como estado neutro —
-não vira falha por omissão.
+Se a pessoa ignorar a revisão, depois da janela o dia vira "descartado"
+automático (`auto = true`) — neutro, nunca "falha".
 
 ## Schema
 ```sql
@@ -36,6 +43,7 @@ CREATE TABLE habit_day_reviews (
   review_date DATE NOT NULL,
   status VARCHAR(20) NOT NULL, -- 'migrated' | 'discarded'
   reviewed_at TIMESTAMP DEFAULT now(),
+  auto BOOLEAN NOT NULL DEFAULT false, -- migração 021: descartado pelo app
   UNIQUE(habit_id, review_date)
 );
 ```

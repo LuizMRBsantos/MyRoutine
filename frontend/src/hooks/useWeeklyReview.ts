@@ -59,3 +59,20 @@ export function useReviewDay() {
     },
   })
 }
+
+export type ReviewDecision = { habitId: string; reviewDate: string; status: 'migrated' | 'discarded' }
+
+// Salva várias decisões de uma vez ("Salvar revisão"); os dias decididos
+// saem da lista.
+export function useSaveReview() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (decisions: ReviewDecision[]) =>
+      Promise.all(decisions.map(d => reviewApi.reviewDay(d.habitId, d.reviewDate, d.status))),
+    meta: { handlesError: true },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: reviewKeys.missed() })
+    },
+  })
+}
+

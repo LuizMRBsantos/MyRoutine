@@ -432,6 +432,13 @@ o CI (Trivy).
 2. ⏳ "Repetir": dias da semana + até quando; editar/apagar uma ou as próximas.
 3. ⏳ O Luiz manda a grade; o Claude monta a lista para cadastrar.
 
+**Revisão (mudança de regra em 19/10, decisão do Luiz):** a tela mostra só
+ontem e anteontem, sem os dias já decididos; a pessoa escolhe Migrar ou
+Descartar e toca em "Salvar revisão". Dias com mais de 2 dias sem registro
+e sem decisão viram "descartado" automático (`habit_day_reviews.auto`,
+migração 021, até 30 dias para trás); decisões da pessoa nunca são
+sobrescritas. Regra registrada na skill `habit-review-flow`.
+
 **Metas da semana (pedido em 09/10):** ✅ cartão no Dashboard; meta simples
 (feita ou não), segunda a domingo no fuso da pessoa, independente das metas do
 mês, sem placar ou porcentagem. Migração 019 (`weekly_goals`, RLS), entra na
